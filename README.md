@@ -1,43 +1,62 @@
 # ScoreIvy
 
-An exam platform built with Next.js and React.
-
-## Features
-
-- Login page with username/password authentication
-- Dashboard with "Take Test" button
-- Interactive exam interface with multiple choice questions
-- One question at a time with navigation
-
-## Getting Started
-
-First, install the dependencies:
-
-```bash
-npm install
-```
-
-Then, run the development server:
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+An exam platform for creating, taking, and grading multiple-choice tests.
 
 ## Project Structure
 
-- `/app` - Next.js app directory
-  - `/page.tsx` - Login page
-  - `/dashboard` - Dashboard page (after login)
-  - `/exam` - Exam/test page
+```
+ScoreIvy/
+├── frontend/          # Next.js React frontend application
+├── backend/           # FastAPI Python backend service
+└── database/          # PostgreSQL database initialization scripts
+```
 
-## Usage
+## Getting Started
 
-1. Navigate to the login page
-2. Enter any username and password (validation accepts any non-empty values for demo)
-3. Click "Login" to access the dashboard
-4. Click "Take Test" to start the exam
-5. Answer questions one at a time and click "Next" to proceed
-6. Complete all 10 questions
+### Frontend
+
+See `frontend/README.md` for frontend setup instructions.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs on `http://localhost:3000`
+
+### Backend
+
+See `backend/README.md` for backend setup instructions.
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+Backend API runs on `http://localhost:8000`
+API documentation at `http://localhost:8000/docs`
+
+### Database
+
+See `database/README.md` for database setup instructions.
+
+1. Create PostgreSQL database
+2. Run initialization scripts from `database/` directory
+
+## Features
+
+- User authentication and account management
+- Question bank management with images and explanations
+- Test creation and configuration
+- Test taking with timing and auto-grading
+- Comprehensive test results with detailed analytics
+- Package purchasing system for test access
+
+## Technology Stack
+
+- **Frontend**: Next.js, React, TypeScript
+- **Backend**: FastAPI, Python, SQLAlchemy
+- **Database**: PostgreSQL
 
