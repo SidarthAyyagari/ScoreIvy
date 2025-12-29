@@ -97,9 +97,14 @@ echo -e "   Frontend: tail -f frontend.log"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services${NC}\n"
 
 # Keep script running and wait for processes
-echo -e "${BLUE}Services are running. Check logs with:${NC}"
-echo -e "   tail -f backend.log"
-echo -e "   tail -f frontend.log\n"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Services are running. View logs with:${NC}"
+echo -e "   Backend:  tail -f backend.log"
+echo -e "   Frontend: tail -f frontend.log"
+echo -e "\n${YELLOW}Or open logs in separate terminals:${NC}"
+echo -e "   Terminal 1: tail -f backend.log"
+echo -e "   Terminal 2: tail -f frontend.log"
+echo -e "\n${YELLOW}Press Ctrl+C to stop all services${NC}\n"
 
 # Wait for background processes
 wait $BACKEND_PID $FRONTEND_PID 2>/dev/null || true

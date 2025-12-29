@@ -14,8 +14,8 @@ export default function LoginPage() {
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
-      setError('')
-      
+    setError('')
+
       // Decode the JWT token to get user info
       const base64Url = credentialResponse.credential.split('.')[1]
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
@@ -82,8 +82,8 @@ export default function LoginPage() {
             onSuccess={handleGoogleSuccess}
             onError={handleGoogleError}
             useOneTap
-          />
-        </div>
+            />
+          </div>
       </div>
     </div>
   )

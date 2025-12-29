@@ -14,6 +14,8 @@ class User(Base):
     oauth_provider = Column(String, nullable=True)  # e.g., 'google'
     oauth_id = Column(String, nullable=True)  # OAuth provider user ID
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True)
 
     # Relationships

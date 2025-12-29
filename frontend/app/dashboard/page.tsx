@@ -124,7 +124,7 @@ export default function DashboardPage() {
                       className={styles.viewButton}
                     >
                       View Package
-                    </button>
+        </button>
                   </div>
                 ))}
               </div>
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                       className={styles.purchaseButton}
                     >
                       Purchase
-                    </button>
+        </button>
                   </div>
                 ))}
               </div>

@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
+import logging
 from app.db.database import get_db
 from app.models.models import Package, UserPackage, User
 from app.schemas.schemas import PackageResponse, UserPackageResponse
 from app.routers.auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -75,23 +78,34 @@ async def purchase_package(
     db: Session = Depends(get_db)
 ):
     """Purchase a package for the current user"""
-    # Get package
-    package = db.query(Package).filter(Package.id == package_id).first()
-    if not package:
-        raise HTTPException(status_code=404, detail="Package not found")
-    
-    if not package.is_active:
-        raise HTTPException(status_code=400, detail="Package is not available")
-    
-    # Create user package
-    user_package = UserPackage(
-        user_id=current_user.id,
-        package_id=package.id,
-        tests_remaining=package.test_count
-    )
-    db.add(user_package)
-    db.commit()
-    db.refresh(user_package)
-    
-    return user_package
+    try:
+        logger.info(f"Purchase attempt: User {current_user.id} attempting to purchase package {package_id}")
+        
+        # Get package
+        package = db.query(Package).filter(Package.id == package_id).first()
+        if not package:
+            logger.warning(f"Package {package_id} not found")
+            raise HTTPException(status_code=404, detail="Package not found")
+        
+        if not package.is_active:
+            logger.warning(f"Package {package_id} is not active")
+            raise HTTPException(status_code=400, detail="Package is not available")
+        
+        # Create user package
+        user_package = UserPackage(
+            user_id=current_user.id,
+            package_id=package.id,
+            tests_remaining=package.test_count
+        )
+        db.add(user_package)
+        db.commit()
+        db.refresh(user_package)
+        
+        logger.info(f"Successfully purchased package {package_id} for user {current_user.id}, user_package_id: {user_package.id}")
+        return user_package
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error purchasing package: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
