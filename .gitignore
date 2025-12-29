@@ -38,6 +38,10 @@ backend/.ruff_cache/
 .env.local
 .env*.local
 
+# Application logs
+backend.log
+frontend.log
+
 # misc
 .DS_Store
 *.pem

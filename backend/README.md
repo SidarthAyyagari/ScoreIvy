@@ -2,29 +2,58 @@
 
 FastAPI backend service for the ScoreIvy exam platform.
 
-## Setup
+## Quick Start
 
-1. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Option 1: Use the startup script (easiest)**
+```bash
+cd backend
+./start.sh
+```
 
-2. **Set up environment variables**:
-   Create a `.env` file in the backend directory:
+**Option 2: Manual setup (copy and paste these commands in order)**
+
+```bash
+cd backend
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip3 install -r requirements.txt
+
+# Create .env file with database connection
+echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/scoreivy" > .env
+
+# Run the server
+python3 -m uvicorn main:app --reload
+```
+
+The API will be available at `http://localhost:8000`
+API documentation at `http://localhost:8000/docs`
+
+**Note:** Make sure Docker is running and the database is started (see root `README.md` for `docker-compose up -d`)
+
+## Setup Details
+
+1. **Virtual Environment** (recommended to isolate dependencies):
+   - Virtual environment is created in the `venv/` directory
+   - Activate it with `source venv/bin/activate` before running the server
+   - You'll see `(venv)` in your terminal prompt when it's active
+
+2. **Environment Variables**:
+   The `.env` file should contain:
    ```
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/scoreivy
    ```
 
-3. **Initialize the database**:
-   See the `../database/` directory for SQL scripts to set up the database schema.
-
-4. **Run the server**:
+3. **Database Setup**:
+   Make sure PostgreSQL is running. See the `../database/` directory for setup instructions, or use Docker:
    ```bash
-   uvicorn main:app --reload
+   docker-compose up -d
    ```
-
-   The API will be available at `http://localhost:8000`
-   API documentation at `http://localhost:8000/docs`
 
 ## API Endpoints
 

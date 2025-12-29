@@ -11,11 +11,67 @@ ScoreIvy/
 └── database/          # PostgreSQL database initialization scripts
 ```
 
-## Getting Started
+## Quick Start
 
-### Frontend
+**Start everything with one command:**
+```bash
+./start.sh
+```
 
-See `frontend/README.md` for frontend setup instructions.
+This will start:
+- 🗄️  Database (Docker/PostgreSQL) on port 5432
+- 🔧 Backend (FastAPI) on `http://localhost:8000`
+- 🎨 Frontend (Next.js) on `http://localhost:3000`
+
+**Stop everything:**
+```bash
+./stop.sh
+```
+
+Or press `Ctrl+C` in the terminal where `start.sh` is running.
+
+## Getting Started (Manual)
+
+### Quick Start Script (Recommended)
+
+```bash
+./start.sh
+```
+
+### Manual Setup
+
+#### Database
+
+Start with Docker:
+```bash
+docker-compose up -d
+```
+
+Or see `database/README.md` for manual PostgreSQL setup.
+
+#### Backend
+
+See `backend/README.md` for detailed instructions.
+
+```bash
+cd backend
+./start.sh
+```
+
+Or manually:
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/scoreivy" > .env
+python3 -m uvicorn main:app --reload
+```
+
+Backend API runs on `http://localhost:8000`
+API documentation at `http://localhost:8000/docs`
+
+#### Frontend
 
 ```bash
 cd frontend
@@ -24,26 +80,6 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:3000`
-
-### Backend
-
-See `backend/README.md` for backend setup instructions.
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-Backend API runs on `http://localhost:8000`
-API documentation at `http://localhost:8000/docs`
-
-### Database
-
-See `database/README.md` for database setup instructions.
-
-1. Create PostgreSQL database
-2. Run initialization scripts from `database/` directory
 
 ## Features
 

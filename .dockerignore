@@ -1,0 +1,6 @@
+   docker-compose downycache__
+*.pyc
+.env
+.git
+.gitignore
+README.md
