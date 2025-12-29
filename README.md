@@ -31,7 +31,7 @@ See `backend/README.md` for backend setup instructions.
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 uvicorn main:app --reload
 ```
 
