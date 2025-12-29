@@ -9,8 +9,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    name = Column(String, nullable=True)  # Full name from OAuth
+    picture = Column(String, nullable=True)  # Profile picture URL from OAuth
+    oauth_provider = Column(String, nullable=True)  # e.g., 'google'
+    oauth_id = Column(String, nullable=True)  # OAuth provider user ID
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
 

@@ -1,7 +1,8 @@
 .container {
   width: 100%;
-  max-width: 500px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
 }
 
 .dashboardCard {
@@ -9,7 +10,15 @@
   border-radius: 16px;
   padding: 40px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  text-align: center;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 .title {
@@ -21,36 +30,11 @@
 
 .subtitle {
   color: #666;
-  margin-bottom: 32px;
   font-size: 1rem;
 }
 
-.testButton {
-  width: 100%;
-  padding: 16px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  margin-bottom: 16px;
-}
-
-.testButton:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-}
-
-.testButton:active {
-  transform: translateY(0);
-}
-
 .logoutButton {
-  width: 100%;
-  padding: 12px 24px;
+  padding: 10px 20px;
   background: transparent;
   color: #666;
   border: 2px solid #e0e0e0;
@@ -66,3 +50,120 @@
   color: #333;
 }
 
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.panel {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 24px;
+  border: 2px solid #e0e0e0;
+}
+
+.panelTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.packageList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.packageCard {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  border: 2px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: box-shadow 0.2s;
+}
+
+.packageCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.packageInfo {
+  flex: 1;
+}
+
+.packageInfo h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.packageInfo p {
+  color: #666;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.packageStats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.price {
+  font-weight: 600;
+  color: #667eea;
+  font-size: 1.1rem;
+}
+
+.viewButton,
+.purchaseButton {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.viewButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.viewButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.purchaseButton {
+  background: #10b981;
+  color: white;
+}
+
+.purchaseButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.emptyState p {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 968px) {
+  .panels {
+    grid-template-columns: 1fr;
+  }
+}

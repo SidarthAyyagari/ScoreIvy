@@ -70,11 +70,9 @@ echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID)${NC}\n"
 echo -e "${GREEN}🎨 Starting frontend server...${NC}"
 cd frontend
 
-# Install dependencies if node_modules doesn't exist
-if [ ! -d "node_modules" ]; then
-    echo -e "${YELLOW}📥 Installing frontend dependencies (this may take a while)...${NC}"
-    npm install
-fi
+# Install dependencies
+echo -e "${YELLOW}📥 Installing frontend dependencies...${NC}"
+npm install
 
 # Start frontend in background
 npm run dev > ../frontend.log 2>&1 &

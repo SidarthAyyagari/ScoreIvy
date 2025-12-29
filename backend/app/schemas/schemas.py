@@ -115,7 +115,8 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: str
-    username: str
+    name: Optional[str]
+    picture: Optional[str]
     is_active: bool
     created_at: datetime
 

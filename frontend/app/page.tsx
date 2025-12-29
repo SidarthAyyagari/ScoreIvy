@@ -2,74 +2,89 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { GoogleLogin } from '@react-oauth/google'
+import { useAuth } from './contexts/AuthContext'
+import { apiJson } from './utils/api'
 import styles from './page.module.css'
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const { login } = useAuth()
   const router = useRouter()
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    // Simple validation - for demo purposes, accept any non-empty credentials
-    if (username.trim() && password.trim()) {
-      // Store login state in sessionStorage
-      sessionStorage.setItem('isLoggedIn', 'true')
-      sessionStorage.setItem('username', username)
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      setError('')
+      
+      // Decode the JWT token to get user info
+      const base64Url = credentialResponse.credential.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      
+      const userInfo = JSON.parse(jsonPayload)
+      
+      // Send to backend for OAuth login
+      const response = await apiJson<{
+        access_token: string
+        user: {
+          id: number
+          email: string
+          name: string | null
+          picture: string | null
+        }
+      }>('/api/auth/oauth-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userInfo.email,
+          name: userInfo.name,
+          picture: userInfo.picture,
+          oauth_provider: 'google',
+          oauth_id: userInfo.sub,
+        }),
+      })
+      
+      // Store auth data
+      login(response.user.email, response.user.name, response.user.picture, response.access_token)
+      
+      // Update user ID from response
+      localStorage.setItem('user', JSON.stringify(response.user))
+      
+      // Redirect to dashboard
       router.push('/dashboard')
-    } else {
-      setError('Please enter both username and password')
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.')
+      console.error('Login error:', err)
     }
+  }
+
+  const handleGoogleError = () => {
+    setError('Google login failed. Please try again.')
   }
 
   return (
     <div className={styles.container}>
       <div className={styles.loginCard}>
         <h1 className={styles.title}>ScoreIvy</h1>
-        <p className={styles.subtitle}>Welcome back! Please login to continue.</p>
+        <p className={styles.subtitle}>Welcome! Sign in to continue.</p>
         
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.inputGroup}>
-            <label htmlFor="username" className={styles.label}>
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={styles.input}
-              placeholder="Enter your username"
-              autoComplete="username"
-            />
-          </div>
+        {error && <div className={styles.error}>{error}</div>}
 
-          <div className={styles.inputGroup}>
-            <label htmlFor="password" className={styles.label}>
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={styles.input}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-            />
-          </div>
-
-          {error && <div className={styles.error}>{error}</div>}
-
-          <button type="submit" className={styles.button}>
-            Login
-          </button>
-        </form>
+        <div className={styles.oauthSection}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            useOneTap
+          />
+        </div>
       </div>
     </div>
   )
 }
-

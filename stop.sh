@@ -14,8 +14,8 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🛑 Stopping ScoreIvy services...${NC}\n"
 
 # Stop Docker containers
-echo -e "${GREEN}📦 Stopping database...${NC}"
-docker-compose down 2>/dev/null || echo "Database already stopped"
+# echo -e "${GREEN}📦 Stopping database...${NC}"
+# docker-compose down 2>/dev/null || echo "Database already stopped"
 
 # Kill backend process
 echo -e "${GREEN}🔧 Stopping backend...${NC}"

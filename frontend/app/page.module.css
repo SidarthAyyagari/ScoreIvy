@@ -88,3 +88,9 @@
   transform: translateY(0);
 }
 
+.oauthSection {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+

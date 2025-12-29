@@ -5,12 +5,13 @@ from typing import List
 from datetime import datetime
 from app.db.database import get_db
 from app.models.models import (
-    Test, TestQuestion, Question, TestAttempt, QuestionAttempt
+    Test, TestQuestion, Question, TestAttempt, QuestionAttempt, User, UserPackage
 )
 from app.schemas.schemas import (
     TestCreate, TestResponse, TestDetailResponse, TestQuestionResponse,
     TestAttemptCreate, TestAttemptResponse
 )
+from app.routers.auth import get_current_user
 
 router = APIRouter()
 
@@ -111,7 +112,8 @@ async def get_test(
 async def submit_test_attempt(
     test_id: int,
     attempt: TestAttemptCreate,
-    user_id: int = 1,  # TODO: Get from authentication
+    user_package_id: int = None,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Submit a completed test attempt"""
@@ -123,6 +125,19 @@ async def submit_test_attempt(
     # Verify attempt is for the correct test
     if attempt.test_id != test_id:
         raise HTTPException(status_code=400, detail="Test ID mismatch")
+    
+    # Verify user package if provided
+    if user_package_id:
+        user_package = db.query(UserPackage).filter(
+            UserPackage.id == user_package_id,
+            UserPackage.user_id == current_user.id
+        ).first()
+        if not user_package:
+            raise HTTPException(status_code=404, detail="User package not found")
+        
+        # Decrement tests remaining
+        if user_package.tests_remaining > 0:
+            user_package.tests_remaining -= 1
     
     # Get all questions for this test with correct answers
     test_questions = (
@@ -141,9 +156,10 @@ async def submit_test_attempt(
     
     # Create test attempt
     db_test_attempt = TestAttempt(
-        user_id=user_id,
+        user_id=current_user.id,
         test_id=test_id,
-        started_at=datetime.now(),  # TODO: Get from request
+        user_package_id=user_package_id,
+        started_at=datetime.now(),
         completed_at=datetime.now(),
         total_questions=total_questions
     )
@@ -178,11 +194,37 @@ async def submit_test_attempt(
 @router.get("/attempts/{attempt_id}", response_model=TestAttemptResponse)
 async def get_test_attempt(
     attempt_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get a test attempt by ID"""
-    attempt = db.query(TestAttempt).filter(TestAttempt.id == attempt_id).first()
+    """Get a test attempt by ID (must belong to current user)"""
+    attempt = db.query(TestAttempt).filter(
+        TestAttempt.id == attempt_id,
+        TestAttempt.user_id == current_user.id
+    ).first()
     if not attempt:
         raise HTTPException(status_code=404, detail="Test attempt not found")
     return attempt
+
+
+@router.get("/user-package/{user_package_id}/attempts", response_model=List[TestAttemptResponse])
+async def get_user_package_test_attempts(
+    user_package_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all test attempts for a user package"""
+    # Verify user package belongs to current user
+    user_package = db.query(UserPackage).filter(
+        UserPackage.id == user_package_id,
+        UserPackage.user_id == current_user.id
+    ).first()
+    if not user_package:
+        raise HTTPException(status_code=404, detail="User package not found")
+    
+    attempts = db.query(TestAttempt).filter(
+        TestAttempt.user_package_id == user_package_id
+    ).order_by(TestAttempt.completed_at.desc()).all()
+    
+    return attempts
 

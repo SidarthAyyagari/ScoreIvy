@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import questions, tests, users, packages
+from app.routers import questions, tests, users, packages, auth, test_results
 
 app = FastAPI(title="ScoreIvy API", version="1.0.0")
 
@@ -14,10 +14,12 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
 app.include_router(tests.router, prefix="/api/tests", tags=["tests"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(packages.router, prefix="/api/packages", tags=["packages"])
+app.include_router(test_results.router, prefix="/api/test-results", tags=["test-results"])
 
 
 @app.get("/")
