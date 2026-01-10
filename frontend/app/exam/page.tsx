@@ -39,6 +39,8 @@ export default function ExamPage() {
   const [startTime] = useState(Date.now())
   const [timeRemaining, setTimeRemaining] = useState<number>(0) // in seconds
   const [testStarted, setTestStarted] = useState(false)
+  const [markedQuestions, setMarkedQuestions] = useState<Set<number>>(new Set())
+  const [showLabValues, setShowLabValues] = useState(false)
   const answersRef = useRef<{ [questionId: number]: string }>({})
 
   useEffect(() => {
@@ -157,27 +159,55 @@ export default function ExamPage() {
 
   const handleAnswerSelect = (answerKey: string) => {
     setSelectedAnswer(answerKey)
+    // Auto-save answer when selected
+    const newAnswers = { ...answers, [currentQuestion.id]: answerKey }
+    setAnswers(newAnswers)
+    answersRef.current = newAnswers
+  }
+
+  const handleMarkQuestion = () => {
+    const newMarked = new Set(markedQuestions)
+    if (newMarked.has(currentQuestion.id)) {
+      newMarked.delete(currentQuestion.id)
+    } else {
+      newMarked.add(currentQuestion.id)
+    }
+    setMarkedQuestions(newMarked)
+  }
+
+  const handleQuestionNavigation = (index: number) => {
+    // Save current answer before navigating
+    if (selectedAnswer !== null) {
+      const newAnswers = { ...answers }
+      newAnswers[currentQuestion.id] = selectedAnswer
+      setAnswers(newAnswers)
+    }
+    setCurrentQuestionIndex(index)
+  }
+
+  const handlePrevious = () => {
+    if (currentQuestionIndex > 0) {
+      handleQuestionNavigation(currentQuestionIndex - 1)
+    }
   }
 
   const handleNext = async () => {
-    if (selectedAnswer === null) {
-      alert('Please select an answer before proceeding')
-      return
+    // Save current answer
+    if (selectedAnswer !== null) {
+      const newAnswers = { ...answers }
+      newAnswers[currentQuestion.id] = selectedAnswer
+      setAnswers(newAnswers)
     }
-
-    // Save the current answer
-    const newAnswers = { ...answers }
-    newAnswers[currentQuestion.id] = selectedAnswer
-    setAnswers(newAnswers)
 
     if (isLastQuestion) {
       // Submit test attempt
-      await submitTestAttempt(newAnswers)
+      const finalAnswers = selectedAnswer !== null ? { ...answers, [currentQuestion.id]: selectedAnswer } : answers
+      await submitTestAttempt(finalAnswers)
     } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
-      setSelectedAnswer(answers[questions[currentQuestionIndex + 1]?.id] || null)
+      handleQuestionNavigation(currentQuestionIndex + 1)
     }
   }
+
 
   const submitTestAttempt = async (finalAnswers: { [questionId: number]: string }) => {
     try {
@@ -203,7 +233,7 @@ export default function ExamPage() {
       }
 
       const endpoint = `/api/tests/${testId}/attempt${queryParams.toString() ? '?' + queryParams.toString() : ''}`
-      const attempt = await apiJson(endpoint, {
+      const attempt = await apiJson<{ id: number }>(endpoint, {
         method: 'POST',
         body: JSON.stringify(payload),
         headers: {
@@ -222,52 +252,177 @@ export default function ExamPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.examCard}>
-        <div className={styles.header}>
-          <div className={styles.headerTop}>
-            <div className={styles.progress}>
-              Question {currentQuestionIndex + 1} of {questions.length}
-            </div>
-            <div className={`${styles.timer} ${
-              timeRemaining <= 60 ? styles.timerCritical : 
-              timeRemaining <= 300 ? styles.timerWarning : ''
-            }`}>
-              Time Remaining: {formatTime(timeRemaining)}
-            </div>
-          </div>
-          <div className={styles.progressBar}>
-            <div 
-              className={styles.progressFill}
-              style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+      {/* Top Navigation Bar */}
+      <div className={styles.topNavBar}>
+        <div className={styles.topNavLeft}>
+          <span className={styles.itemInfo}>Item: {currentQuestionIndex + 1} of {questions.length}</span>
+          <span className={styles.blockInfo}>Block: 1 of 1</span>
+          <label className={styles.markCheckbox}>
+            <input
+              type="checkbox"
+              checked={markedQuestions.has(currentQuestion.id)}
+              onChange={handleMarkQuestion}
             />
-          </div>
+            <span>Mark</span>
+          </label>
         </div>
-
-        <div className={styles.questionSection}>
-          <h2 className={styles.questionText}>{currentQuestion.question_text}</h2>
-          
-          <div className={styles.options}>
-            {answerChoices.map(([key, value]) => (
-              <button
-                key={key}
-                onClick={() => handleAnswerSelect(key)}
-                className={`${styles.option} ${
-                  selectedAnswer === key ? styles.optionSelected : ''
-                }`}
-              >
-                <span className={styles.optionKey}>{key}:</span> {value}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className={styles.footer}>
-          <button
-            onClick={handleNext}
-            className={styles.nextButton}
-            disabled={selectedAnswer === null || submitting}
+        
+        <div className={styles.topNavCenter}>
+          <button 
+            onClick={handlePrevious}
+            disabled={currentQuestionIndex === 0}
+            className={styles.navButton}
           >
-            {submitting ? 'Submitting...' : isLastQuestion ? 'Finish Exam' : 'Next'}
+            Previous
+          </button>
+          <button 
+            onClick={handleNext}
+            disabled={submitting}
+            className={styles.navButton}
+          >
+            Next
+          </button>
+        </div>
+
+        <div className={styles.topNavRight}>
+          <button
+            onClick={() => setShowLabValues(!showLabValues)}
+            className={`${styles.utilityButton} ${showLabValues ? styles.utilityButtonActive : ''}`}
+          >
+            Lab Values
+          </button>
+          <button className={styles.utilityButton}>Notes</button>
+          <button className={styles.utilityButton}>Calculator</button>
+          <button className={styles.utilityButton}>Reverse Color</button>
+          <button className={styles.utilityButton}>Text Zoom</button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className={styles.mainContent}>
+        {/* Left Sidebar - Question Numbers */}
+        <div className={styles.leftSidebar}>
+          {questions.map((q, index) => (
+            <button
+              key={q.id}
+              onClick={() => handleQuestionNavigation(index)}
+              className={`${styles.questionNumber} ${
+                index === currentQuestionIndex ? styles.questionNumberActive : ''
+              } ${
+                answers[q.id] ? styles.questionNumberAnswered : ''
+              } ${
+                markedQuestions.has(q.id) ? styles.questionNumberMarked : ''
+              }`}
+            >
+              {index + 1}
+            </button>
+          ))}
+          <div className={styles.keyLabel}>Key</div>
+        </div>
+
+        {/* Center Panel - Question and Options */}
+        <div className={styles.questionPanel}>
+          <div className={styles.questionHeader}>
+            <span className={styles.itemInfoSmall}>Item: {currentQuestionIndex + 1} of {questions.length}</span>
+            <span className={styles.blockInfoSmall}>Block: 1 of 1</span>
+            <label className={styles.markCheckboxSmall}>
+              <input
+                type="checkbox"
+                checked={markedQuestions.has(currentQuestion.id)}
+                onChange={handleMarkQuestion}
+              />
+              <span>Mark</span>
+            </label>
+          </div>
+
+          <div className={styles.questionContent}>
+            <div className={styles.questionText}>{currentQuestion.question_text}</div>
+            
+            <div className={styles.options}>
+              {answerChoices.map(([key, value]) => (
+                <label
+                  key={key}
+                  className={`${styles.option} ${
+                    selectedAnswer === key ? styles.optionSelected : ''
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={`question-${currentQuestion.id}`}
+                    value={key}
+                    checked={selectedAnswer === key}
+                    onChange={() => handleAnswerSelect(key)}
+                  />
+                  <span className={styles.optionLabel}>
+                    <span className={styles.optionKey}>{key}.</span> {value}
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div className={styles.questionActions}>
+              <button className={styles.showAnswerButton}>Show Answer</button>
+              <button
+                onClick={handleNext}
+                className={styles.proceedButton}
+                disabled={submitting}
+              >
+                {submitting ? 'Submitting...' : isLastQuestion ? 'End Block' : 'Proceed to Next Item'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Lab Values (Optional) */}
+        {showLabValues && (
+          <div className={styles.rightPanel}>
+            <div className={styles.rightPanelHeader}>
+              <button
+                onClick={() => setShowLabValues(false)}
+                className={styles.closePanelButton}
+              >
+                ×
+              </button>
+              <h3>Lab Values</h3>
+            </div>
+            <div className={styles.rightPanelContent}>
+              <div className={styles.labValuesTabs}>
+                <button className={styles.labTabActive}>Serum</button>
+                <button className={styles.labTab}>Cerebrospinal</button>
+                <button className={styles.labTab}>Blood</button>
+                <button className={styles.labTab}>Urine and BMI</button>
+              </div>
+              <div className={styles.labValuesTable}>
+                <p className={styles.labValuesNote}>Reference values available during exam</p>
+                <p className={styles.labValuesInfo}>
+                  Lab values reference table would be displayed here. This can be populated with actual medical reference ranges if needed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Bar */}
+      <div className={styles.bottomBar}>
+        <div className={styles.bottomBarLeft}>
+          <span className={styles.timeRemaining}>
+            Block Time Remaining: {timeRemaining > 0 ? formatTime(timeRemaining) : '00:00'}
+          </span>
+          <span className={styles.lockIcon}>🔒</span>
+        </div>
+        <div className={styles.bottomBarRight}>
+          <button
+            onClick={() => {
+              if (confirm('Are you sure you want to end this block? You will not be able to return.')) {
+                const finalAnswers = selectedAnswer !== null ? { ...answers, [currentQuestion.id]: selectedAnswer } : answers
+                submitTestAttempt(finalAnswers)
+              }
+            }}
+            className={styles.endBlockButton}
+            disabled={submitting}
+          >
+            End Block
           </button>
         </div>
       </div>
