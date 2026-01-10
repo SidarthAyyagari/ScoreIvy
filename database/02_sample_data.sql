@@ -23,10 +23,7 @@ INSERT INTO questions (section_id, question_text, answer_choices, correct_answer
     (2, 'What is the speed of light in vacuum (approximately)?', '{"A": "300,000 km/s", "B": "150,000 km/s", "C": "450,000 km/s", "D": "600,000 km/s"}'::jsonb, 'A', 'The speed of light in a vacuum is approximately 299,792,458 meters per second, which rounds to about 300,000 km/s.', 'hard')
 ON CONFLICT DO NOTHING;
 
--- Insert sample packages
-INSERT INTO packages (name, description, test_count, price) VALUES
-    ('Basic Package', '10 practice tests', 10, 29.99),
-    ('Standard Package', '25 practice tests', 25, 59.99),
-    ('Premium Package', '50 practice tests', 50, 99.99)
-ON CONFLICT DO NOTHING;
+-- Note: Packages, tests, and test_questions are now inserted via 05_comprehensive_data.sql
+-- This ensures consistent "Practice Test 1-50" naming convention
+-- All old test and test_questions data has been removed
 

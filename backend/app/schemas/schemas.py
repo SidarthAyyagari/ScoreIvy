@@ -147,3 +147,94 @@ class UserPackageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# Package Schemas
+class PackageCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    test_count: int
+    price: float
+    is_active: bool = True
+
+
+class PackageUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    test_count: Optional[int] = None
+    price: Optional[float] = None
+    is_active: Optional[bool] = None
+
+
+# Section Schemas
+class SectionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class SectionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class SectionResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+# Question Update Schema
+class QuestionUpdate(BaseModel):
+    section_id: Optional[int] = None
+    question_text: Optional[str] = None
+    image_url: Optional[str] = None
+    answer_choices: Optional[Dict[str, str]] = None
+    correct_answer: Optional[str] = None
+    explanation: Optional[str] = None
+    difficulty: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+# Test Update Schema
+class TestUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    time_limit_minutes: Optional[int] = None
+    is_active: Optional[bool] = None
+    question_ids: Optional[List[int]] = None  # If provided, will update test questions
+
+
+# UserPackage Update Schema
+class UserPackageUpdate(BaseModel):
+    tests_remaining: Optional[int] = None
+    expires_at: Optional[datetime] = None
+
+
+# TestAttempt Update Schema
+class TestAttemptUpdate(BaseModel):
+    completed_at: Optional[datetime] = None
+    score: Optional[float] = None
+    correct_answers: Optional[int] = None
+
+
+# QuestionAttempt Update Schema
+class QuestionAttemptUpdate(BaseModel):
+    selected_answer: Optional[str] = None
+    is_correct: Optional[bool] = None
+    time_spent_seconds: Optional[int] = None
+
+
+class QuestionAttemptResponse(BaseModel):
+    id: int
+    test_attempt_id: int
+    question_id: int
+    selected_answer: Optional[str]
+    is_correct: Optional[bool]
+    time_spent_seconds: Optional[int]
+    answered_at: datetime
+
+    class Config:
+        from_attributes = True
+

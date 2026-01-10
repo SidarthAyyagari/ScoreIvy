@@ -97,7 +97,23 @@ class Test(Base):
 
     # Relationships
     test_questions = relationship("TestQuestion", back_populates="test")
+    test_sections = relationship("TestSection", back_populates="test")
     test_attempts = relationship("TestAttempt", back_populates="test")
+
+
+class TestSection(Base):
+    """Links sections to tests"""
+    __tablename__ = "test_sections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
+    section_id = Column(Integer, ForeignKey("sections.id"), nullable=False)
+    section_order = Column(Integer, nullable=False)  # Order of section in the test (1, 2, 3)
+    question_count = Column(Integer, nullable=False)  # Number of questions in this section for this test
+
+    # Relationships
+    test = relationship("Test", back_populates="test_sections")
+    section = relationship("Section")
 
 
 class TestQuestion(Base):
@@ -105,13 +121,16 @@ class TestQuestion(Base):
     __tablename__ = "test_questions"
 
     id = Column(Integer, primary_key=True, index=True)
-    test_id = Column(Integer, ForeignKey("tests.id"), nullable=False)
+    test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
+    section_id = Column(Integer, ForeignKey("sections.id"), nullable=False)
     question_order = Column(Integer, nullable=False)  # Order of question in the test
+    section_question_order = Column(Integer, nullable=False)  # Order within the section
 
     # Relationships
     test = relationship("Test", back_populates="test_questions")
     question = relationship("Question")
+    section = relationship("Section")
 
 
 class TestAttempt(Base):

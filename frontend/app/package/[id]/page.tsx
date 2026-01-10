@@ -20,12 +20,21 @@ interface TestAttempt {
   }
 }
 
+interface AvailableTest {
+  id: number
+  name: string
+  description: string | null
+  time_limit_minutes: number
+  question_count: number
+}
+
 export default function PackageDetailPage() {
   const { isAuthenticated } = useAuth()
   const router = useRouter()
   const params = useParams()
   const packageId = params.id as string
   const [attempts, setAttempts] = useState<TestAttempt[]>([])
+  const [availableTests, setAvailableTests] = useState<AvailableTest[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -40,11 +49,14 @@ export default function PackageDetailPage() {
   const fetchAttempts = async () => {
     try {
       setLoading(true)
-      const data = await apiJson<TestAttempt[]>(`/api/tests/user-package/${packageId}/attempts`)
+      const [attemptsData, availableTestsData] = await Promise.all([
+        apiJson<TestAttempt[]>(`/api/tests/user-package/${packageId}/attempts`),
+        apiJson<AvailableTest[]>(`/api/tests/user-package/${packageId}/available`)
+      ])
       
       // Fetch test details for each attempt
       const attemptsWithTests = await Promise.all(
-        data.map(async (attempt) => {
+        attemptsData.map(async (attempt) => {
           try {
             const test = await apiJson(`/api/tests/${attempt.test_id}`)
             return { ...attempt, test }
@@ -55,6 +67,7 @@ export default function PackageDetailPage() {
       )
       
       setAttempts(attemptsWithTests)
+      setAvailableTests(availableTestsData)
     } catch (err) {
       console.error('Error fetching attempts:', err)
     } finally {
@@ -66,7 +79,10 @@ export default function PackageDetailPage() {
     router.push(`/results/${attemptId}`)
   }
 
-  const activeAttempts = attempts.filter(a => !a.completed_at)
+  const handleStartTest = (testId: number) => {
+    router.push(`/exam?testId=${testId}&userPackageId=${packageId}`)
+  }
+
   const completedAttempts = attempts.filter(a => a.completed_at)
 
   if (loading) {
@@ -89,21 +105,25 @@ export default function PackageDetailPage() {
           <h1 className={styles.title}>Package Tests</h1>
         </div>
 
-        {/* Active Tests */}
+        {/* Available Tests */}
         <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Active Tests</h2>
-          {activeAttempts.length === 0 ? (
-            <div className={styles.emptyState}>No active tests</div>
+          <h2 className={styles.sectionTitle}>Available Tests</h2>
+          {availableTests.length === 0 ? (
+            <div className={styles.emptyState}>No available tests</div>
           ) : (
             <div className={styles.attemptList}>
-              {activeAttempts.map((attempt) => (
-                <div key={attempt.id} className={styles.attemptCard}>
+              {availableTests.map((test) => (
+                <div key={test.id} className={styles.attemptCard}>
                   <div className={styles.attemptInfo}>
-                    <h3>{attempt.test?.name || 'Test'}</h3>
-                    <p>{attempt.test?.description || 'Test description'}</p>
+                    <h3>{test.name}</h3>
+                    <p>{test.description || 'Test description'}</p>
+                    <div className={styles.attemptStats}>
+                      <span>{test.question_count} questions</span>
+                      <span>Time limit: {test.time_limit_minutes} minutes</span>
+                    </div>
                   </div>
                   <button
-                    onClick={() => router.push(`/exam?testId=${attempt.test_id}&attemptId=${attempt.id}`)}
+                    onClick={() => handleStartTest(test.id)}
                     className={styles.startButton}
                   >
                     Start Test

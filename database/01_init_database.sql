@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Create Sections table
 CREATE TABLE IF NOT EXISTS sections (
     id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL,
+    name VARCHAR NOT NULL UNIQUE,
     description TEXT
 );
 
@@ -43,10 +43,13 @@ CREATE TABLE IF NOT EXISTS questions (
     is_active BOOLEAN DEFAULT TRUE
 );
 
+-- Create index on questions.id for faster lookups
+CREATE INDEX IF NOT EXISTS idx_questions_id ON questions(id);
+
 -- Create Packages table
 CREATE TABLE IF NOT EXISTS packages (
     id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL,
+    name VARCHAR NOT NULL UNIQUE,
     description TEXT,
     test_count INTEGER NOT NULL, -- Number of tests included
     price DECIMAL(10, 2) NOT NULL,
@@ -75,12 +78,24 @@ CREATE TABLE IF NOT EXISTS tests (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- Create Test Questions table (many-to-many relationship)
+-- Create Test Sections table (links sections to tests)
+CREATE TABLE IF NOT EXISTS test_sections (
+    id SERIAL PRIMARY KEY,
+    test_id INTEGER NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    section_id INTEGER NOT NULL REFERENCES sections(id),
+    section_order INTEGER NOT NULL, -- Order of section in the test (1, 2, 3)
+    question_count INTEGER NOT NULL, -- Number of questions in this section for this test
+    UNIQUE(test_id, section_id, section_order)
+);
+
+-- Create Test Questions table (many-to-many relationship with section info)
 CREATE TABLE IF NOT EXISTS test_questions (
     id SERIAL PRIMARY KEY,
     test_id INTEGER NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
     question_id INTEGER NOT NULL REFERENCES questions(id),
-    question_order INTEGER NOT NULL,
+    section_id INTEGER NOT NULL REFERENCES sections(id),
+    question_order INTEGER NOT NULL, -- Order within the test
+    section_question_order INTEGER NOT NULL, -- Order within the section
     UNIQUE(test_id, question_id)
 );
 
@@ -113,8 +128,11 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_questions_section ON questions(section_id);
 CREATE INDEX IF NOT EXISTS idx_questions_active ON questions(is_active);
+CREATE INDEX IF NOT EXISTS idx_test_sections_test ON test_sections(test_id);
+CREATE INDEX IF NOT EXISTS idx_test_sections_section ON test_sections(section_id);
 CREATE INDEX IF NOT EXISTS idx_test_questions_test ON test_questions(test_id);
 CREATE INDEX IF NOT EXISTS idx_test_questions_question ON test_questions(question_id);
+CREATE INDEX IF NOT EXISTS idx_test_questions_section ON test_questions(section_id);
 CREATE INDEX IF NOT EXISTS idx_test_attempts_user ON test_attempts(user_id);
 CREATE INDEX IF NOT EXISTS idx_test_attempts_test ON test_attempts(test_id);
 CREATE INDEX IF NOT EXISTS idx_question_attempts_test_attempt ON question_attempts(test_attempt_id);

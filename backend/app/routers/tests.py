@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -9,7 +9,7 @@ from app.models.models import (
     Test, TestQuestion, Question, TestAttempt, QuestionAttempt, User, UserPackage
 )
 from app.schemas.schemas import (
-    TestCreate, TestResponse, TestDetailResponse, TestQuestionResponse,
+    TestCreate, TestUpdate, TestResponse, TestDetailResponse, TestQuestionResponse,
     TestAttemptCreate, TestAttemptResponse
 )
 from app.routers.auth import get_current_user
@@ -115,7 +115,7 @@ async def get_test(
 async def submit_test_attempt(
     test_id: int,
     attempt: TestAttemptCreate,
-    user_package_id: int = None,
+    user_package_id: int = Query(None, description="User package ID"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -243,4 +243,136 @@ async def get_user_package_test_attempts(
     ).order_by(TestAttempt.completed_at.desc()).all()
     
     return attempts
+
+
+@router.get("/user-package/{user_package_id}/available", response_model=List[TestResponse])
+async def get_available_tests_for_package(
+    user_package_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all available tests that can be taken for a user package (tests not yet completed)"""
+    logger.info(f"Fetching available tests for user package {user_package_id}, user {current_user.id}")
+    
+    # Verify user package belongs to current user
+    user_package = db.query(UserPackage).filter(
+        UserPackage.id == user_package_id,
+        UserPackage.user_id == current_user.id
+    ).first()
+    if not user_package:
+        logger.warning(f"User package {user_package_id} not found for user {current_user.id}")
+        raise HTTPException(status_code=404, detail="User package not found")
+    
+    # Check if user has tests remaining
+    if user_package.tests_remaining <= 0:
+        logger.info(f"User package {user_package_id} has no tests remaining")
+        return []
+    
+    # Get all active tests
+    all_tests = db.query(Test).filter(Test.is_active == True).all()
+    
+    # Get test IDs that have already been COMPLETED for this package
+    completed_test_ids = db.query(TestAttempt.test_id).filter(
+        TestAttempt.user_package_id == user_package_id,
+        TestAttempt.completed_at.isnot(None)  # Only completed attempts
+    ).distinct().all()
+    completed_test_ids = [t[0] for t in completed_test_ids]
+    
+    # Filter out tests that have already been completed (but allow tests that haven't been taken)
+    available_tests = [test for test in all_tests if test.id not in completed_test_ids]
+    
+    logger.info(f"Found {len(available_tests)} available tests for user package {user_package_id}")
+    return available_tests
+
+
+@router.put("/{test_id}", response_model=TestResponse)
+async def update_test(
+    test_id: int,
+    test: TestUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a test"""
+    logger.info(f"Updating test {test_id}")
+    try:
+        db_test = db.query(Test).filter(Test.id == test_id).first()
+        if not db_test:
+            logger.warning(f"Test {test_id} not found")
+            raise HTTPException(status_code=404, detail="Test not found")
+        
+        # Update fields if provided
+        if test.name is not None:
+            db_test.name = test.name
+        if test.description is not None:
+            db_test.description = test.description
+        if test.time_limit_minutes is not None:
+            db_test.time_limit_minutes = test.time_limit_minutes
+        if test.is_active is not None:
+            db_test.is_active = test.is_active
+        
+        # Update test questions if provided
+        if test.question_ids is not None:
+            # Validate all questions exist
+            questions = db.query(Question).filter(
+                Question.id.in_(test.question_ids),
+                Question.is_active == True
+            ).all()
+            
+            if len(questions) != len(test.question_ids):
+                raise HTTPException(
+                    status_code=404,
+                    detail="One or more questions not found"
+                )
+            
+            # Delete existing test questions
+            db.query(TestQuestion).filter(TestQuestion.test_id == test_id).delete()
+            
+            # Add new test questions
+            for index, question_id in enumerate(test.question_ids):
+                db_test_question = TestQuestion(
+                    test_id=db_test.id,
+                    question_id=question_id,
+                    question_order=index + 1
+                )
+                db.add(db_test_question)
+            
+            db_test.question_count = len(test.question_ids)
+        
+        db.commit()
+        db.refresh(db_test)
+        logger.info(f"✅ Test {test_id} updated")
+        return db_test
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating test: {str(e)}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating test: {str(e)}")
+
+
+@router.delete("/{test_id}")
+async def delete_test(
+    test_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Soft delete a test (set is_active to False)"""
+    logger.info(f"Deleting test {test_id}")
+    try:
+        db_test = db.query(Test).filter(Test.id == test_id).first()
+        if not db_test:
+            logger.warning(f"Test {test_id} not found")
+            raise HTTPException(status_code=404, detail="Test not found")
+        
+        # Soft delete
+        db_test.is_active = False
+        db.commit()
+        logger.info(f"✅ Test {test_id} soft deleted")
+        return {"message": "Test deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting test: {str(e)}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting test: {str(e)}")
 
