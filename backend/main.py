@@ -208,19 +208,45 @@ def run_initialization_script():
                 statements = [s.strip() for s in full_script.split(';') if s.strip()]
                 
                 executed_count = 0
-                for statement in statements:
+                error_count = 0
+                skipped_count = 0
+                
+                logger.info(f"Parsed {len(statements)} statements from comprehensive data script")
+                
+                for i, statement in enumerate(statements):
                     if statement:
                         try:
                             db.execute(text(statement))
                             executed_count += 1
+                            if executed_count <= 5:  # Log first 5 successful statements
+                                logger.debug(f"Executed statement {executed_count}: {statement[:80]}...")
                         except Exception as e:
-                            # Log warnings but continue - ON CONFLICT should handle duplicates
+                            # If transaction is aborted, rollback and continue with next statement
                             error_msg = str(e).lower()
-                            if "duplicate key" not in error_msg and "already exists" not in error_msg:
-                                logger.debug(f"Data statement note: {str(e)}")
+                            if "infailedsqltransaction" in error_msg or "current transaction is aborted" in error_msg:
+                                db.rollback()
+                                logger.warning(f"Transaction aborted at statement {i+1}, rolling back and continuing...")
+                                # Retry the statement after rollback
+                                try:
+                                    db.execute(text(statement))
+                                    executed_count += 1
+                                except Exception as e2:
+                                    error_msg2 = str(e2).lower()
+                                    if "duplicate key" in error_msg2 or "already exists" in error_msg2:
+                                        skipped_count += 1
+                                    else:
+                                        if error_count < 10:
+                                            logger.warning(f"Retry failed for statement {i+1}: {str(e2)[:200]}")
+                                        error_count += 1
+                            elif "duplicate key" in error_msg or "already exists" in error_msg:
+                                skipped_count += 1
+                            else:
+                                if error_count < 10:  # Log first 10 errors
+                                    logger.warning(f"Data statement error ({i+1}): {str(e)[:200]}")
+                                error_count += 1
                 
                 db.commit()
-                logger.info(f"✅ Comprehensive data loaded ({executed_count} statements executed)")
+                logger.info(f"✅ Comprehensive data loaded ({executed_count} executed, {skipped_count} skipped, {error_count} errors)")
             else:
                 logger.warning(f"⚠️  Comprehensive data script not found at {comprehensive_path}")
             

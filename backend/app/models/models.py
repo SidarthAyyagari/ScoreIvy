@@ -36,6 +36,21 @@ class Package(Base):
 
     # Relationships
     user_packages = relationship("UserPackage", back_populates="package")
+    package_tests = relationship("PackageTest", back_populates="package")
+
+
+class PackageTest(Base):
+    """Links packages to their included tests"""
+    __tablename__ = "package_tests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    package_id = Column(Integer, ForeignKey("packages.id", ondelete="CASCADE"), nullable=False)
+    test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
+    test_order = Column(Integer, nullable=False)  # Order of test within the package
+
+    # Relationships
+    package = relationship("Package", back_populates="package_tests")
+    test = relationship("Test", back_populates="package_tests")
 
 
 class UserPackage(Base):
@@ -99,6 +114,7 @@ class Test(Base):
     test_questions = relationship("TestQuestion", back_populates="test")
     test_sections = relationship("TestSection", back_populates="test")
     test_attempts = relationship("TestAttempt", back_populates="test")
+    package_tests = relationship("PackageTest", back_populates="test")
 
 
 class TestSection(Base):

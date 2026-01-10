@@ -13,6 +13,18 @@ BEGIN
     END IF;
 END $$;
 
+-- Ensure sections.name has UNIQUE constraint (may not exist if table was created differently)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'sections_name_key' 
+        AND conrelid = 'sections'::regclass
+    ) THEN
+        ALTER TABLE sections ADD CONSTRAINT sections_name_key UNIQUE (name);
+    END IF;
+END $$;
+
 -- Create Test Sections table if it doesn't exist
 CREATE TABLE IF NOT EXISTS test_sections (
     id SERIAL PRIMARY KEY,
@@ -39,7 +51,19 @@ BEGIN
     END IF;
 END $$;
 
+-- Create Package Tests mapping table if it doesn't exist
+CREATE TABLE IF NOT EXISTS package_tests (
+    id SERIAL PRIMARY KEY,
+    package_id INTEGER NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+    test_id INTEGER NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    test_order INTEGER NOT NULL, -- Order of test within the package
+    UNIQUE(package_id, test_id),
+    UNIQUE(package_id, test_order)
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_test_sections_test ON test_sections(test_id);
 CREATE INDEX IF NOT EXISTS idx_test_questions_section ON test_questions(section_id);
+CREATE INDEX IF NOT EXISTS idx_package_tests_package ON package_tests(package_id);
+CREATE INDEX IF NOT EXISTS idx_package_tests_test ON package_tests(test_id);
 

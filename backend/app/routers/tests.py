@@ -238,9 +238,24 @@ async def get_user_package_test_attempts(
     if not user_package:
         raise HTTPException(status_code=404, detail="User package not found")
     
-    attempts = db.query(TestAttempt).filter(
+    # Join with Test to get test names for sorting
+    attempts_with_tests = db.query(TestAttempt, Test).join(
+        Test, TestAttempt.test_id == Test.id
+    ).filter(
         TestAttempt.user_package_id == user_package_id
-    ).order_by(TestAttempt.completed_at.desc()).all()
+    ).all()
+    
+    # Extract TestAttempt objects and sort by numeric part of test name
+    import re
+    def extract_test_number_from_tuple(attempt_test_tuple):
+        attempt, test = attempt_test_tuple
+        match = re.search(r'\d+', test.name)
+        return int(match.group()) if match else 0
+    
+    attempts_with_tests.sort(key=extract_test_number_from_tuple)
+    
+    # Extract just the TestAttempt objects
+    attempts = [attempt for attempt, test in attempts_with_tests]
     
     return attempts
 
@@ -268,8 +283,22 @@ async def get_available_tests_for_package(
         logger.info(f"User package {user_package_id} has no tests remaining")
         return []
     
-    # Get all active tests
-    all_tests = db.query(Test).filter(Test.is_active == True).all()
+    # Get tests included in this package from package_tests mapping
+    from app.models.models import PackageTest
+    package_test_ids = db.query(PackageTest.test_id).filter(
+        PackageTest.package_id == user_package.package_id
+    ).order_by(PackageTest.test_order).all()
+    package_test_ids = [t[0] for t in package_test_ids]
+    
+    if not package_test_ids:
+        logger.warning(f"No tests mapped to package {user_package.package_id}")
+        return []
+    
+    # Get the actual test objects that are included in this package and are active
+    package_tests = db.query(Test).filter(
+        Test.id.in_(package_test_ids),
+        Test.is_active == True
+    ).all()
     
     # Get test IDs that have already been COMPLETED for this package
     completed_test_ids = db.query(TestAttempt.test_id).filter(
@@ -278,10 +307,18 @@ async def get_available_tests_for_package(
     ).distinct().all()
     completed_test_ids = [t[0] for t in completed_test_ids]
     
-    # Filter out tests that have already been completed (but allow tests that haven't been taken)
-    available_tests = [test for test in all_tests if test.id not in completed_test_ids]
+    # Filter out completed tests and sort by numeric part of test name
+    available_tests = [test for test in package_tests if test.id not in completed_test_ids]
     
-    logger.info(f"Found {len(available_tests)} available tests for user package {user_package_id}")
+    # Sort by extracting number from "Practice Test X" format
+    def extract_test_number(test):
+        import re
+        match = re.search(r'\d+', test.name)
+        return int(match.group()) if match else 0
+    
+    available_tests.sort(key=extract_test_number)
+    
+    logger.info(f"Found {len(available_tests)} available tests for user package {user_package_id} (package includes {len(package_test_ids)} tests)")
     return available_tests
 
 

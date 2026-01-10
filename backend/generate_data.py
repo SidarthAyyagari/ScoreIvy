@@ -254,7 +254,7 @@ def generate_sql():
         "-- Ensure sections exist (exactly 3)",
     ]
     
-    # Sections
+    # Sections - use id for conflict resolution since we're specifying IDs
     for section_id, name, desc in sections:
         sql_lines.append(
             f"INSERT INTO sections (id, name, description) VALUES "
@@ -341,6 +341,29 @@ def generate_sql():
             f"ON CONFLICT (test_id, question_id) DO UPDATE SET "
             f"section_id = EXCLUDED.section_id, question_order = EXCLUDED.question_order, "
             f"section_question_order = EXCLUDED.section_question_order;"
+        )
+    
+    sql_lines.append("")
+    sql_lines.append("-- Insert package-test mappings")
+    sql_lines.append("-- Basic Package (1): tests 1-10")
+    sql_lines.append("-- Standard Package (2): tests 1-25")
+    sql_lines.append("-- Premium Package (3): tests 1-50")
+    
+    # Package-Test mappings
+    package_test_mappings = []
+    for pkg_id, test_count in [(1, 10), (2, 25), (3, 50)]:
+        for i in range(1, test_count + 1):
+            package_test_mappings.append({
+                'package_id': pkg_id,
+                'test_id': i,
+                'test_order': i
+            })
+    
+    for mapping in package_test_mappings:
+        sql_lines.append(
+            f"INSERT INTO package_tests (package_id, test_id, test_order) "
+            f"VALUES ({mapping['package_id']}, {mapping['test_id']}, {mapping['test_order']}) "
+            f"ON CONFLICT (package_id, test_id) DO UPDATE SET test_order = EXCLUDED.test_order;"
         )
     
     return '\n'.join(sql_lines)

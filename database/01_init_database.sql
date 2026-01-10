@@ -67,6 +67,16 @@ CREATE TABLE IF NOT EXISTS user_packages (
     expires_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Create Package Tests mapping table (links packages to their included tests)
+CREATE TABLE IF NOT EXISTS package_tests (
+    id SERIAL PRIMARY KEY,
+    package_id INTEGER NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+    test_id INTEGER NOT NULL REFERENCES tests(id) ON DELETE CASCADE,
+    test_order INTEGER NOT NULL, -- Order of test within the package
+    UNIQUE(package_id, test_id),
+    UNIQUE(package_id, test_order)
+);
+
 -- Create Tests table
 CREATE TABLE IF NOT EXISTS tests (
     id SERIAL PRIMARY KEY,

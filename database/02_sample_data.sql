@@ -1,13 +1,11 @@
 -- Sample data for testing
 -- Run this after 01_init_database.sql
 
--- Insert sample sections
-INSERT INTO sections (name, description) VALUES
-    ('General Knowledge', 'General knowledge questions'),
-    ('Mathematics', 'Mathematics and arithmetic questions'),
-    ('Science', 'Science-related questions'),
-    ('Literature', 'Literature and writing questions')
-ON CONFLICT DO NOTHING;
+-- Insert Literature section (other 3 sections are handled by comprehensive_data.sql)
+-- This ensures we have 4 sections total: General Knowledge, Mathematics, Science, Literature
+INSERT INTO sections (id, name, description) VALUES 
+    (4, 'Literature', 'Literature and writing questions')
+ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- Insert sample questions
 INSERT INTO questions (section_id, question_text, answer_choices, correct_answer, explanation, difficulty) VALUES
