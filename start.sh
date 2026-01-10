@@ -2,6 +2,7 @@
 
 # ScoreIvy Startup Script
 # Starts database (Docker), backend, and frontend
+# Press Ctrl+C to stop all services
 
 set -e
 
@@ -9,19 +10,49 @@ set -e
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}🚀 Starting ScoreIvy Application...${NC}\n"
 
-# Function to cleanup on exit
+# Initialize PIDs (will be set when processes start)
+BACKEND_PID=""
+FRONTEND_PID=""
+
+# Function to cleanup on exit (Ctrl+C)
 cleanup() {
     echo -e "\n${YELLOW}🛑 Shutting down services...${NC}"
+    
+    # Kill backend process if it exists
+    if [ ! -z "$BACKEND_PID" ] && kill -0 $BACKEND_PID 2>/dev/null; then
+        echo -e "${YELLOW}   Stopping backend (PID: $BACKEND_PID)...${NC}"
+        kill $BACKEND_PID 2>/dev/null || true
+        wait $BACKEND_PID 2>/dev/null || true
+    else
+        # Try to kill by process name as fallback
+        pkill -f "uvicorn main:app" 2>/dev/null || true
+    fi
+    
+    # Kill frontend process if it exists
+    if [ ! -z "$FRONTEND_PID" ] && kill -0 $FRONTEND_PID 2>/dev/null; then
+        echo -e "${YELLOW}   Stopping frontend (PID: $FRONTEND_PID)...${NC}"
+        kill $FRONTEND_PID 2>/dev/null || true
+        wait $FRONTEND_PID 2>/dev/null || true
+    else
+        # Try to kill by process name as fallback
+        pkill -f "next dev" 2>/dev/null || true
+    fi
+    
+    # Stop Docker containers
+    echo -e "${YELLOW}   Stopping Docker containers...${NC}"
     docker-compose down 2>/dev/null || true
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
-    exit
+    
+    echo -e "${GREEN}✅ All services stopped${NC}"
+    exit 0
 }
 
-trap cleanup SIGINT SIGTERM
+# Trap Ctrl+C (SIGINT) and SIGTERM to run cleanup
+trap cleanup SIGINT SIGTERM EXIT
 
 # 1. Start Database (Docker)
 echo -e "${GREEN}📦 Starting database (Docker)...${NC}"
@@ -104,8 +135,8 @@ echo -e "   Frontend: tail -f frontend.log"
 echo -e "\n${YELLOW}Or open logs in separate terminals:${NC}"
 echo -e "   Terminal 1: tail -f backend.log"
 echo -e "   Terminal 2: tail -f frontend.log"
-echo -e "\n${YELLOW}Press Ctrl+C to stop all services${NC}\n"
+echo -e "\n${RED}Press Ctrl+C to stop all services${NC}\n"
 
-# Wait for background processes
+# Wait for background processes (will be interrupted by trap on Ctrl+C)
 wait $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
 
