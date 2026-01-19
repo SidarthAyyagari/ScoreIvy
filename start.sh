@@ -43,11 +43,11 @@ cleanup() {
         pkill -f "next dev" 2>/dev/null || true
     fi
     
-    # Stop Docker containers
-    echo -e "${YELLOW}   Stopping Docker containers...${NC}"
-    docker-compose down 2>/dev/null || true
+    # Note: Docker containers are NOT stopped - database keeps running
+    # To stop database, run: docker-compose down
     
-    echo -e "${GREEN}✅ All services stopped${NC}"
+    echo -e "${GREEN}✅ Backend and frontend stopped${NC}"
+    echo -e "${BLUE}💡 Database is still running. To stop it, run: docker-compose down${NC}"
     exit 0
 }
 
