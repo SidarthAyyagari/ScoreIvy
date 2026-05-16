@@ -1,3 +1,10 @@
+"""Shared validation helpers for multiple-choice question payloads.
+
+Used by Pydantic schemas (e.g. ``QuestionCreate``) so API and CSV import enforce
+the same rules. In Python, module and function docstrings are the usual
+equivalent of Javadoc — they show up in IDE tooltips and generated docs.
+"""
+
 import re
 from typing import Dict
 
@@ -8,10 +15,19 @@ MAX_ANSWER_CHOICES = 8
 
 
 def normalize_choice_key(key: str) -> str:
+    """Return a trimmed, uppercase choice letter (e.g. ``"b"`` → ``"B"``)."""
     return key.strip().upper()
 
 
 def validate_answer_choices(choices: Dict[str, str]) -> Dict[str, str]:
+    """Validate and normalize MCQ options (keys A–Z, 2–8 non-empty choices).
+
+    Raises:
+        ValueError: If keys, counts, or choice text are invalid.
+
+    Returns:
+        Dict mapping normalized keys to trimmed choice text.
+    """
     if not choices:
         raise ValueError("answer_choices must not be empty")
     if len(choices) < MIN_ANSWER_CHOICES:
@@ -36,6 +52,11 @@ def validate_answer_choices(choices: Dict[str, str]) -> Dict[str, str]:
 
 
 def validate_correct_answer(correct_answer: str, answer_choices: Dict[str, str]) -> str:
+    """Ensure ``correct_answer`` matches a key in normalized ``answer_choices``.
+
+    Returns:
+        Uppercase choice key (e.g. ``"B"``).
+    """
     normalized = normalize_choice_key(correct_answer)
     if normalized not in answer_choices:
         raise ValueError(
@@ -45,6 +66,7 @@ def validate_correct_answer(correct_answer: str, answer_choices: Dict[str, str])
 
 
 def validate_difficulty(difficulty: str) -> str:
+    """Normalize and validate difficulty (``easy``, ``medium``, or ``hard``)."""
     normalized = difficulty.strip().lower()
     if normalized not in VALID_DIFFICULTIES:
         allowed = ", ".join(sorted(VALID_DIFFICULTIES))

@@ -1,16 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException
+
+"""Admin question CRUD and bulk create endpoints.
+
+Request bodies are validated via ``QuestionCreate`` (Pydantic) before handlers run.
+Route handler docstrings describe each HTTP operation for OpenAPI / Swagger UI.
+"""
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import JSONResponse>>>>>>> feat/question-create-api
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import logging
 from app.db.database import get_db
-from app.models.models import Question, Section, User
+from app.models.models import Question, Section
 from app.schemas.schemas import (
     QuestionCreate,
     QuestionUpdate,
     QuestionResponse,
     QuestionsBulkCreate,
+    CsvUploadErrorResponse,
+    CsvUploadSuccessResponse,
+    CsvValidationErrorItem,
 )
 from app.deps.admin import require_admin
+from app.services.question_csv import parse_and_validate_csv, import_questions
+from app.models.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +31,7 @@ router = APIRouter()
 
 
 def _assert_section_exists(db: Session, section_id: int) -> None:
+    """Raise 404 if the given section id is not in the database."""
     section = db.query(Section).filter(Section.id == section_id).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
@@ -72,6 +86,62 @@ async def create_questions_bulk(
         db.refresh(question)
 
     return created_questions
+
+
+@router.post(
+    "/upload-csv",
+    response_model=CsvUploadSuccessResponse,
+    responses={422: {"model": CsvUploadErrorResponse}},
+)
+async def upload_questions_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin: None = Depends(require_admin),
+):
+    """Bulk import questions from a CSV file (admin only)."""
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a .csv upload")
+
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="CSV must be UTF-8 encoded")
+
+    logger.info("Validating CSV upload: %s (%s bytes)", file.filename, len(raw))
+    valid_questions, errors, total_rows = parse_and_validate_csv(content, db)
+
+    if errors:
+        error_response = CsvUploadErrorResponse(
+            total_rows=total_rows,
+            error_count=len(errors),
+            errors=[CsvValidationErrorItem(**item.to_dict()) for item in errors],
+        )
+        return JSONResponse(status_code=422, content=error_response.model_dump())
+
+    if not valid_questions:
+        error_response = CsvUploadErrorResponse(
+            total_rows=0,
+            error_count=1,
+            errors=[
+                CsvValidationErrorItem(row=0, message="No valid questions found in CSV")
+            ],
+        )
+        return JSONResponse(status_code=422, content=error_response.model_dump())
+
+    try:
+        created = import_questions(db, valid_questions)
+    except Exception as exc:
+        logger.error("CSV import failed: %s", exc, exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error importing questions: {exc}")
+
+    logger.info("Imported %s questions from CSV", len(created))
+    return CsvUploadSuccessResponse(
+        imported_count=len(created),
+        total_rows=total_rows,
+        questions=created,
+    )
 
 
 @router.get("/", response_model=List[QuestionResponse])

@@ -15,6 +15,12 @@ class AnswerChoice(BaseModel):
 
 
 class QuestionCreate(BaseModel):
+    """Request body for creating one MCQ question (``POST /api/questions/``).
+
+    Validators normalize strings and reject invalid choice keys, counts, and
+    difficulty before the route handler persists to the database.
+    """
+
     section_id: Optional[int] = Field(default=None, gt=0)
     question_text: str = Field(..., min_length=1)
     image_url: Optional[str] = None
@@ -85,6 +91,27 @@ class QuestionResponse(BaseModel):
 
 class QuestionsBulkCreate(BaseModel):
     questions: List[QuestionCreate]
+
+
+class CsvValidationErrorItem(BaseModel):
+    row: int
+    message: str
+    column: Optional[str] = None
+
+
+class CsvUploadErrorResponse(BaseModel):
+    success: bool = False
+    total_rows: int
+    error_count: int
+    errors: List[CsvValidationErrorItem]
+    message: str = "CSV validation failed"
+
+
+class CsvUploadSuccessResponse(BaseModel):
+    success: bool = True
+    imported_count: int
+    total_rows: int
+    questions: List[QuestionResponse]
 
 
 # Test Schemas
