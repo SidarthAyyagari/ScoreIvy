@@ -21,6 +21,7 @@
 - [ ] Student timed exam flow
 - [ ] Submit exam + score
 - [ ] Results page
+- [ ] Configure `ADMIN_EMAILS` in production OS/environment (comma-separated admin emails; required for admin access after deploy)
 - [ ] Production deploy sanity check
 
 ## P1 — Soon After
@@ -38,6 +39,9 @@
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
 - [ ] API tests for question create validation edge cases
+- [ ] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
+- [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
+- [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
 
 ## P2 — Later
 - [ ] Stripe
