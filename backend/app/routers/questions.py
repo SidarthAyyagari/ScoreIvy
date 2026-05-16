@@ -6,7 +6,7 @@ Route handler docstrings describe each HTTP operation for OpenAPI / Swagger UI.
 """
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse>>>>>>> feat/question-create-api
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import logging
