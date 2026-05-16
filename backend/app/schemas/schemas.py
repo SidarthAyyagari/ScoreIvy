@@ -15,6 +15,12 @@ class AnswerChoice(BaseModel):
 
 
 class QuestionCreate(BaseModel):
+    """Request body for creating one MCQ question (``POST /api/questions/``).
+
+    Validators normalize strings and reject invalid choice keys, counts, and
+    difficulty before the route handler persists to the database.
+    """
+
     section_id: Optional[int] = Field(default=None, gt=0)
     question_text: str = Field(..., min_length=1)
     image_url: Optional[str] = None

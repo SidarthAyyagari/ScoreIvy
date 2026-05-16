@@ -25,6 +25,7 @@
 
 ## P1 — Soon After
 - [ ] Alembic migrations
+- [ ] Python docstrings and inline docs across backend (modules, routers, schemas — readability; like Javadoc)
 - [ ] Better error handling
 - [ ] Loading states
 - [ ] Search/pagination for admin questions
@@ -32,6 +33,7 @@
 - [ ] Sentry/logging
 
 ## Backlog
+- [ ] Extend docstrings to frontend TypeScript (JSDoc on shared types and API helpers)
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
