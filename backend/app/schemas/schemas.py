@@ -1,6 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from typing import Optional, List, Dict
 from datetime import datetime
+from app.schemas.question_validators import (
+    validate_answer_choices,
+    validate_correct_answer,
+    validate_difficulty,
+)
 
 
 # Question Schemas
@@ -10,13 +15,63 @@ class AnswerChoice(BaseModel):
 
 
 class QuestionCreate(BaseModel):
-    section_id: Optional[int] = None
-    question_text: str
+    """Request body for creating one MCQ question (``POST /api/questions/``).
+
+    Validators normalize strings and reject invalid choice keys, counts, and
+    difficulty before the route handler persists to the database.
+    """
+
+    section_id: Optional[int] = Field(default=None, gt=0)
+    question_text: str = Field(..., min_length=1)
     image_url: Optional[str] = None
     answer_choices: Dict[str, str]  # {"A": "choice text", "B": "choice text", ...}
-    correct_answer: str
+    correct_answer: str = Field(..., min_length=1)
     explanation: Optional[str] = None
     difficulty: str = "medium"
+
+    @field_validator("question_text")
+    @classmethod
+    def validate_question_text(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("question_text must not be empty")
+        return stripped
+
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_url(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    @field_validator("answer_choices")
+    @classmethod
+    def validate_answer_choices_field(cls, value: Dict[str, str]) -> Dict[str, str]:
+        return validate_answer_choices(value)
+
+    @field_validator("correct_answer")
+    @classmethod
+    def normalize_correct_answer(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @field_validator("difficulty")
+    @classmethod
+    def validate_difficulty_field(cls, value: str) -> str:
+        return validate_difficulty(value)
+
+    @field_validator("explanation")
+    @classmethod
+    def validate_explanation(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+    @model_validator(mode="after")
+    def validate_correct_answer_in_choices(self) -> "QuestionCreate":
+        self.correct_answer = validate_correct_answer(self.correct_answer, self.answer_choices)
+        return self
 
 
 class QuestionResponse(BaseModel):

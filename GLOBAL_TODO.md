@@ -10,7 +10,7 @@
 
 ## P0 — Monday Alpha
 - [x] Admin-only access control
-- [ ] Backend question create API + validation
+- [x] Backend question create API + validation
 - [ ] Admin question creation form
 - [ ] Bulk CSV question upload
 - [ ] CSV validation + error report
@@ -26,6 +26,7 @@
 
 ## P1 — Soon After
 - [ ] Alembic migrations
+- [ ] Python docstrings and inline docs across backend (modules, routers, schemas — readability; like Javadoc)
 - [ ] Better error handling
 - [ ] Loading states
 - [ ] Search/pagination for admin questions
@@ -33,6 +34,11 @@
 - [ ] Sentry/logging
 
 ## Backlog
+- [ ] Extend docstrings to frontend TypeScript (JSDoc on shared types and API helpers). All classes and methods should have some small doc explaining what it does. All directories and sub directories should have a small readme explaining what all is happening int it.
+- [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
+- [ ] Document `ADMIN_EMAILS` env var in backend setup notes
+- [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
+- [ ] API tests for question create validation edge cases
 - [ ] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
 - [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
