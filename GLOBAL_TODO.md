@@ -11,7 +11,7 @@
 ## P0 — Monday Alpha
 - [x] Admin-only access control
 - [x] Backend question create API + validation
-- [ ] Admin question creation form
+- [x] Admin question creation form
 - [ ] Bulk CSV question upload
 - [ ] CSV validation + error report
 - [ ] Question list table
@@ -36,6 +36,8 @@
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
 - [ ] API tests for question create validation edge cases
+- [ ] Admin layout hub page linking question list, create, and CSV upload
+- [ ] Wire admin nav link on dashboard when `is_admin` is available from auth
 
 ## P2 — Later
 - [ ] Stripe
