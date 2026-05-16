@@ -182,6 +182,20 @@ def run_initialization_script():
                 
                 db.commit()
                 logger.info("✅ Database migration completed")
+
+            admin_migration_path = os.path.join(base_path, "database", "08_add_user_is_admin.sql")
+            if os.path.exists(admin_migration_path):
+                with open(admin_migration_path, 'r') as f:
+                    admin_migration_script = f.read()
+                try:
+                    db.execute(text(admin_migration_script))
+                    db.commit()
+                    logger.info("✅ Admin column migration completed")
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "already exists" not in error_msg:
+                        logger.warning(f"Admin migration warning: {str(e)}")
+                    db.rollback()
             
             # Finally, load comprehensive data
             logger.info("Loading comprehensive test data...")

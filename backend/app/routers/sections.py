@@ -5,7 +5,7 @@ import logging
 from app.db.database import get_db
 from app.models.models import Section
 from app.schemas.schemas import SectionCreate, SectionUpdate, SectionResponse
-from app.routers.auth import get_current_user
+from app.deps.admin import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ async def get_section(
 async def create_section(
     section: SectionCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    _admin = Depends(require_admin)
 ):
     """Create a new section"""
     logger.info(f"Creating section: {section.name}")
@@ -67,7 +67,7 @@ async def update_section(
     section_id: int,
     section: SectionUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    _admin = Depends(require_admin)
 ):
     """Update a section"""
     logger.info(f"Updating section {section_id}")
@@ -98,7 +98,7 @@ async def update_section(
 async def delete_section(
     section_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    _admin = Depends(require_admin)
 ):
     """Delete a section"""
     logger.info(f"Deleting section {section_id}")

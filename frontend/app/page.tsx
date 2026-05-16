@@ -36,6 +36,7 @@ export default function LoginPage() {
           email: string
           name: string | null
           picture: string | null
+          is_admin: boolean
         }
       }>('/api/auth/oauth-login', {
         method: 'POST',
@@ -51,11 +52,7 @@ export default function LoginPage() {
         }),
       })
       
-      // Store auth data
-      login(response.user.email, response.user.name, response.user.picture, response.access_token)
-      
-      // Update user ID from response
-      localStorage.setItem('user', JSON.stringify(response.user))
+      login(response.user, response.access_token)
       
       // Redirect to dashboard
       router.push('/dashboard')

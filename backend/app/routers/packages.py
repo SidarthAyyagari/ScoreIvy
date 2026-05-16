@@ -9,6 +9,7 @@ from app.schemas.schemas import (
     UserPackageResponse, UserPackageUpdate
 )
 from app.routers.auth import get_current_user
+from app.deps.admin import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,7 @@ async def purchase_package(
 async def create_package(
     package: PackageCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    _admin: User = Depends(require_admin),
 ):
     """Create a new package"""
     logger.info(f"Creating package: {package.name}")
@@ -145,7 +146,7 @@ async def update_package(
     package_id: int,
     package: PackageUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    _admin: User = Depends(require_admin),
 ):
     """Update a package"""
     logger.info(f"Updating package {package_id}")
@@ -183,7 +184,7 @@ async def update_package(
 async def delete_package(
     package_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    _admin: User = Depends(require_admin),
 ):
     """Delete a package (soft delete by setting is_active=False)"""
     logger.info(f"Deleting package {package_id}")

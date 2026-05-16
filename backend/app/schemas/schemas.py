@@ -118,6 +118,7 @@ class UserResponse(BaseModel):
     name: Optional[str]
     picture: Optional[str]
     is_active: bool
+    is_admin: bool = False
     created_at: datetime
 
     class Config:

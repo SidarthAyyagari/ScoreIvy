@@ -9,7 +9,8 @@
 - Human decides priority changes.
 
 ## P0 — Monday Alpha
-- [ ] Admin-only access control
+- [x] Admin-only access control
+- [ ] Backend question create API + validation
 - [ ] Admin question creation form
 - [ ] Bulk CSV question upload
 - [ ] CSV validation + error report
@@ -29,6 +30,10 @@
 - [ ] Search/pagination for admin questions
 - [ ] Seed demo data
 - [ ] Sentry/logging
+
+## Backlog
+- [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
+- [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 
 ## P2 — Later
 - [ ] Stripe

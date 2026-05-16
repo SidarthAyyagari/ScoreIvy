@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session
 from typing import List
 import logging
 from app.db.database import get_db
-from app.models.models import Question, Section
+from app.models.models import Question, Section, User
 from app.schemas.schemas import (
     QuestionCreate, QuestionUpdate, QuestionResponse, QuestionsBulkCreate
 )
-from app.routers.auth import get_current_user
+from app.deps.admin import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,9 @@ router = APIRouter()
 async def create_question(
     question: QuestionCreate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    _admin: User = Depends(require_admin),
 ):
-    """Create a single question"""
+    """Create a single question (admin only)."""
     logger.info(f"Creating question: {question.question_text[:50]}...")
     try:
         # Validate section exists if provided
@@ -55,9 +55,10 @@ async def create_question(
 @router.post("/bulk", response_model=List[QuestionResponse])
 async def create_questions_bulk(
     questions_data: QuestionsBulkCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Create multiple questions at once"""
+    """Create multiple questions at once (admin only)."""
     created_questions = []
     
     for question_data in questions_data.questions:
@@ -94,9 +95,10 @@ async def get_questions(
     skip: int = 0,
     limit: int = 100,
     section_id: int = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Get all questions with optional filtering"""
+    """Get all questions with optional filtering (admin only)."""
     query = db.query(Question).filter(Question.is_active == True)
     
     if section_id:
@@ -109,9 +111,10 @@ async def get_questions(
 @router.get("/{question_id}", response_model=QuestionResponse)
 async def get_question(
     question_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
-    """Get a single question by ID"""
+    """Get a single question by ID (admin only)."""
     question = db.query(Question).filter(Question.id == question_id).first()
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -123,9 +126,9 @@ async def update_question(
     question_id: int,
     question: QuestionUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    _admin: User = Depends(require_admin),
 ):
-    """Update a question"""
+    """Update a question (admin only)."""
     logger.info(f"Updating question {question_id}")
     try:
         db_question = db.query(Question).filter(Question.id == question_id).first()
@@ -184,9 +187,9 @@ async def update_question(
 async def delete_question(
     question_id: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    _admin: User = Depends(require_admin),
 ):
-    """Soft delete a question (set is_active to False)"""
+    """Soft delete a question (admin only)."""
     logger.info(f"Deleting question {question_id}")
     try:
         question = db.query(Question).filter(Question.id == question_id).first()
@@ -204,4 +207,3 @@ async def delete_question(
         logger.error(f"Error deleting question: {str(e)}", exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error deleting question: {str(e)}")
-
