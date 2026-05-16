@@ -87,6 +87,27 @@ class QuestionsBulkCreate(BaseModel):
     questions: List[QuestionCreate]
 
 
+class CsvValidationErrorItem(BaseModel):
+    row: int
+    message: str
+    column: Optional[str] = None
+
+
+class CsvUploadErrorResponse(BaseModel):
+    success: bool = False
+    total_rows: int
+    error_count: int
+    errors: List[CsvValidationErrorItem]
+    message: str = "CSV validation failed"
+
+
+class CsvUploadSuccessResponse(BaseModel):
+    success: bool = True
+    imported_count: int
+    total_rows: int
+    questions: List[QuestionResponse]
+
+
 # Test Schemas
 class TestCreate(BaseModel):
     name: str

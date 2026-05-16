@@ -12,8 +12,8 @@
 - [x] Admin-only access control
 - [x] Backend question create API + validation
 - [ ] Admin question creation form
-- [ ] Bulk CSV question upload
-- [ ] CSV validation + error report
+- [x] Bulk CSV question upload
+- [x] CSV validation + error report
 - [ ] Question list table
 - [ ] Edit question page
 - [ ] Exam creation model
@@ -36,6 +36,8 @@
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
 - [ ] API tests for question create validation edge cases
+- [ ] Publish sample questions CSV template for admins
+- [ ] API tests for CSV upload validation and import
 
 ## P2 — Later
 - [ ] Stripe
