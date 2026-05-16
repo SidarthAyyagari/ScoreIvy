@@ -33,7 +33,7 @@
 - [ ] Sentry/logging
 
 ## Backlog
-- [ ] Extend docstrings to frontend TypeScript (JSDoc on shared types and API helpers)
+- [ ] Extend docstrings to frontend TypeScript (JSDoc on shared types and API helpers). All classes and methods should have some small doc explaining what it does. All directories and sub directories should have a small readme explaining what all is happening int it.
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
