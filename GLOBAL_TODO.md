@@ -11,9 +11,9 @@
 ## P0 — Monday Alpha
 - [x] Admin-only access control
 - [x] Backend question create API + validation
-- [ ] Admin question creation form
-- [ ] Bulk CSV question upload
-- [ ] CSV validation + error report
+- [x] Admin question creation form
+- [x] Bulk CSV question upload
+- [x] CSV validation + error report
 - [ ] Question list table
 - [ ] Edit question page
 - [ ] Exam creation model
@@ -39,6 +39,10 @@
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
 - [ ] API tests for question create validation edge cases
+- [ ] Admin layout hub page linking question list, create, and CSV upload
+- [ ] Wire admin nav link on dashboard when `is_admin` is available from auth
+- [ ] Publish sample questions CSV template for admins
+- [ ] API tests for CSV upload validation and import
 - [ ] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
 - [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
