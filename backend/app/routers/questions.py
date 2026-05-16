@@ -1,5 +1,12 @@
+
+"""Admin question CRUD and bulk create endpoints.
+
+Request bodies are validated via ``QuestionCreate`` (Pydantic) before handlers run.
+Route handler docstrings describe each HTTP operation for OpenAPI / Swagger UI.
+"""
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse>>>>>>> feat/question-create-api
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import logging
@@ -24,6 +31,7 @@ router = APIRouter()
 
 
 def _assert_section_exists(db: Session, section_id: int) -> None:
+    """Raise 404 if the given section id is not in the database."""
     section = db.query(Section).filter(Section.id == section_id).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
