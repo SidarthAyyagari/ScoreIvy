@@ -1,21 +1,26 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { apiJson } from '../utils/api'
 
 interface User {
   id: number
   email: string
   name: string | null
   picture: string | null
+  is_admin?: boolean
 }
 
 interface AuthContextType {
   user: User | null
   token: string | null
-  login: (email: string, name: string | null, picture: string | null, token: string) => void
+  login: (user: User, authToken: string) => void
   logout: () => void
   isAuthenticated: boolean
+  isAdmin: boolean
+  isLoading: boolean
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -23,26 +28,47 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    // Check for stored auth data
+  const refreshUser = useCallback(async () => {
     const storedToken = localStorage.getItem('auth_token')
-    const storedUser = localStorage.getItem('user')
-    
-    if (storedToken && storedUser) {
+    if (!storedToken) {
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const me = await apiJson<User>('/api/auth/me', {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      })
       setToken(storedToken)
-      setUser(JSON.parse(storedUser))
+      setUser(me)
+      localStorage.setItem('user', JSON.stringify(me))
+    } catch {
+      setUser(null)
+      setToken(null)
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('user')
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
-  const login = (email: string, name: string | null, picture: string | null, authToken: string) => {
-    const userData: User = {
-      id: 0, // Will be set from backend response
-      email,
-      name,
-      picture
+  useEffect(() => {
+    const storedToken = localStorage.getItem('auth_token')
+    const storedUser = localStorage.getItem('user')
+
+    if (storedToken && storedUser) {
+      setToken(storedToken)
+      setUser(JSON.parse(storedUser))
+      refreshUser()
+    } else {
+      setIsLoading(false)
     }
+  }, [refreshUser])
+
+  const login = (userData: User, authToken: string) => {
     setToken(authToken)
     setUser(userData)
     localStorage.setItem('auth_token', authToken)
@@ -63,7 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       login,
       logout,
-      isAuthenticated: !!token && !!user
+      isAuthenticated: !!token && !!user,
+      isAdmin: !!user?.is_admin,
+      isLoading,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>
@@ -77,4 +106,3 @@ export function useAuth() {
   }
   return context
 }
-

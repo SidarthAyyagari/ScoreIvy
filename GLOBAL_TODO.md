@@ -9,7 +9,8 @@
 - Human decides priority changes.
 
 ## P0 — Monday Alpha
-- [ ] Admin-only access control
+- [x] Admin-only access control
+- [ ] Backend question create API + validation
 - [ ] Admin question creation form
 - [ ] Bulk CSV question upload
 - [ ] CSV validation + error report
@@ -20,6 +21,7 @@
 - [ ] Student timed exam flow
 - [ ] Submit exam + score
 - [ ] Results page
+- [ ] Configure `ADMIN_EMAILS` in production OS/environment (comma-separated admin emails; required for admin access after deploy)
 - [ ] Production deploy sanity check
 
 ## P1 — Soon After
@@ -29,6 +31,11 @@
 - [ ] Search/pagination for admin questions
 - [ ] Seed demo data
 - [ ] Sentry/logging
+
+## Backlog
+- [ ] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
+- [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
+- [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
 
 ## P2 — Later
 - [ ] Stripe

@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 import logging
+import os
 from app.db.database import get_db
 from app.models.models import User
 from app.schemas.schemas import UserResponse
@@ -17,6 +18,22 @@ logging.basicConfig(
 )
 
 router = APIRouter()
+
+
+def resolve_is_admin(email: str) -> bool:
+    """Return True if email is listed in ADMIN_EMAILS (comma-separated)."""
+    admin_emails = os.getenv("ADMIN_EMAILS", "")
+    if not admin_emails.strip():
+        return False
+    allowed = {e.strip().lower() for e in admin_emails.split(",") if e.strip()}
+    return email.lower() in allowed
+
+
+def sync_user_admin_flag(user: User, db: Session) -> None:
+    """Sync is_admin from ADMIN_EMAILS on each login."""
+    user.is_admin = resolve_is_admin(user.email)
+    db.commit()
+    db.refresh(user)
 
 
 class OAuthLoginRequest(BaseModel):
@@ -68,6 +85,8 @@ async def oauth_login(
             db.commit()
             db.refresh(user)
             logger.info(f"Successfully updated user with ID: {user.id}")
+
+        sync_user_admin_flag(user, db)
         
         # Create access token
         access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
@@ -80,7 +99,8 @@ async def oauth_login(
                 "id": user.id,
                 "email": user.email,
                 "name": user.name,
-                "picture": user.picture
+                "picture": user.picture,
+                "is_admin": user.is_admin,
             }
         }
     except Exception as e:
@@ -114,6 +134,13 @@ def get_current_user(
         return user
     except Exception as e:
         raise HTTPException(status_code=401, detail="Invalid authentication")
+
+
+def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Require an authenticated admin user."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
 
 
 @router.get("/me", response_model=UserResponse)

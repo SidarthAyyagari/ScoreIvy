@@ -13,6 +13,7 @@ from app.schemas.schemas import (
     TestAttemptCreate, TestAttemptResponse
 )
 from app.routers.auth import get_current_user
+from app.deps.admin import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,8 @@ router = APIRouter()
 @router.post("/", response_model=TestResponse)
 async def create_test(
     test: TestCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ):
     """Create a new test with specified questions"""
     # Validate all questions exist
@@ -326,7 +328,7 @@ async def get_available_tests_for_package(
 async def update_test(
     test_id: int,
     test: TestUpdate,
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Update a test"""
@@ -390,7 +392,7 @@ async def update_test(
 @router.delete("/{test_id}")
 async def delete_test(
     test_id: int,
-    current_user: User = Depends(get_current_user),
+    _admin: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
     """Soft delete a test (set is_active to False)"""
