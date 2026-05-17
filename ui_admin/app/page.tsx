@@ -89,24 +89,14 @@ export default function LoginPage() {
         <p className={styles.subtitle}>
           {adminGateEnabled
             ? 'Sign in with a Google account listed in ADMIN_EMAILS.'
-            : 'Sign in with any Google account (admin UI gate off for local dev).'}
+            : 'Sign in with Google to manage content.'}
         </p>
-
-        <div className={styles.oauthHint}>
-          <strong>Google OAuth:</strong> Add <code>http://localhost:3001</code> to{' '}
-          <em>Authorized JavaScript origins</em> in Google Cloud Console. Missing this causes{' '}
-          <em>origin_mismatch</em> (not an email case issue).
-        </div>
 
         {error && <div className={styles.error}>{error}</div>}
 
         <GoogleLogin
           onSuccess={handleGoogleSuccess}
-          onError={() =>
-            setError(
-              'Google login failed. If you see origin_mismatch, add http://localhost:3001 to Authorized JavaScript origins in Google Cloud Console.'
-            )
-          }
+          onError={() => setError('Google login failed. Please try again.')}
         />
       </div>
     </div>

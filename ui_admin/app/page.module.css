@@ -39,22 +39,3 @@
   font-size: 0.85rem;
   text-align: left;
 }
-
-.oauthHint {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  color: #0c4a6e;
-  padding: 0.75rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.8rem;
-  text-align: left;
-  line-height: 1.45;
-}
-
-.oauthHint code {
-  background: #e0f2fe;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
