@@ -89,14 +89,8 @@ export default function LoginPage() {
         <p className={styles.subtitle}>
           {adminGateEnabled
             ? 'Sign in with a Google account listed in ADMIN_EMAILS.'
-            : 'Dev mode: any Google account can sign in (NEXT_PUBLIC_REQUIRE_ADMIN=false).'}
+            : 'Sign in with any Google account (admin UI gate off for local dev).'}
         </p>
-
-        {!adminGateEnabled && (
-          <div className={styles.devBanner}>
-            Admin gate disabled for development. Set NEXT_PUBLIC_REQUIRE_ADMIN=true before production.
-          </div>
-        )}
 
         <div className={styles.oauthHint}>
           <strong>Google OAuth:</strong> Add <code>http://localhost:3001</code> to{' '}

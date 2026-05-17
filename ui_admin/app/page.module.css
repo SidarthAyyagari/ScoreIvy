@@ -40,17 +40,6 @@
   text-align: left;
 }
 
-.devBanner {
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  color: #92400e;
-  padding: 0.75rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.8rem;
-  text-align: left;
-}
-
 .oauthHint {
   background: #f0f9ff;
   border: 1px solid #bae6fd;

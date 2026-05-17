@@ -4,12 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
 import { RESOURCES } from '../lib/resources'
-import { isAdminGateEnabled } from '../lib/config'
+import { DevModeBanner } from './DevModeBanner'
 import styles from './AdminShell.module.css'
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth()
-  const adminGateEnabled = isAdminGateEnabled()
   const pathname = usePathname()
 
   return (
@@ -45,12 +44,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <main className={styles.main}>
-        {!adminGateEnabled && (
-          <div className={styles.devBanner}>
-            Dev mode: admin UI gate off (NEXT_PUBLIC_REQUIRE_ADMIN=false). API may still require
-            SKIP_ADMIN_AUTH=true on the backend.
-          </div>
-        )}
+        <DevModeBanner />
         {children}
       </main>
     </div>

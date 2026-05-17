@@ -326,5 +326,10 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
+    from app.routers.auth import is_skip_admin_auth_enabled
+
+    return {
+        "status": "healthy",
+        "skip_admin_auth": is_skip_admin_auth_enabled(),
+    }
 

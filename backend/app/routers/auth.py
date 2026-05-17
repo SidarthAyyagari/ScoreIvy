@@ -20,6 +20,12 @@ logging.basicConfig(
 router = APIRouter()
 
 
+def is_skip_admin_auth_enabled() -> bool:
+    """True when SKIP_ADMIN_AUTH is set (local dev only)."""
+    skip = os.getenv("SKIP_ADMIN_AUTH", "").strip().lower()
+    return skip in ("1", "true", "yes")
+
+
 def resolve_is_admin(email: str) -> bool:
     """Return True if email is listed in ADMIN_EMAILS (comma-separated)."""
     admin_emails = os.getenv("ADMIN_EMAILS", "")
@@ -138,8 +144,7 @@ def get_current_user(
 
 def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require an authenticated admin user (unless SKIP_ADMIN_AUTH is set for local dev)."""
-    skip = os.getenv("SKIP_ADMIN_AUTH", "").strip().lower()
-    if skip in ("1", "true", "yes"):
+    if is_skip_admin_auth_enabled():
         return current_user
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
