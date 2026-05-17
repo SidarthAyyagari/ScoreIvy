@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from './contexts/AuthContext'
 import { apiJson } from './utils/api'
+import { isAdminGateEnabled } from './lib/config'
 import styles from './page.module.css'
 
 export default function LoginPage() {
@@ -14,15 +15,17 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('error=not_admin')) {
-      setError('Your account is not an admin. Add your email to ADMIN_EMAILS on the backend.')
+      setError('Your account is not an admin. Add your email to ADMIN_EMAILS in backend/.env')
     }
   }, [])
 
+  const adminGateEnabled = isAdminGateEnabled()
+
   useEffect(() => {
-    if (!isLoading && isAuthenticated && isAdmin) {
+    if (!isLoading && isAuthenticated && (isAdmin || !adminGateEnabled)) {
       router.replace('/dashboard')
     }
-  }, [isLoading, isAuthenticated, isAdmin, router])
+  }, [isLoading, isAuthenticated, isAdmin, adminGateEnabled, router])
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     try {
@@ -63,8 +66,8 @@ export default function LoginPage() {
         }),
       })
 
-      if (!response.user.is_admin) {
-        setError('Your account is not an admin. Add your email to ADMIN_EMAILS on the backend.')
+      if (adminGateEnabled && !response.user.is_admin) {
+        setError('Your account is not an admin. Add your email to ADMIN_EMAILS in backend/.env')
         return
       }
 
@@ -83,11 +86,34 @@ export default function LoginPage() {
     <div className={styles.container}>
       <div className={styles.card}>
         <h1 className={styles.title}>ScoreIvy Admin</h1>
-        <p className={styles.subtitle}>Sign in with an admin Google account to manage content.</p>
+        <p className={styles.subtitle}>
+          {adminGateEnabled
+            ? 'Sign in with a Google account listed in ADMIN_EMAILS.'
+            : 'Dev mode: any Google account can sign in (NEXT_PUBLIC_REQUIRE_ADMIN=false).'}
+        </p>
+
+        {!adminGateEnabled && (
+          <div className={styles.devBanner}>
+            Admin gate disabled for development. Set NEXT_PUBLIC_REQUIRE_ADMIN=true before production.
+          </div>
+        )}
+
+        <div className={styles.oauthHint}>
+          <strong>Google OAuth:</strong> Add <code>http://localhost:3001</code> to{' '}
+          <em>Authorized JavaScript origins</em> in Google Cloud Console. Missing this causes{' '}
+          <em>origin_mismatch</em> (not an email case issue).
+        </div>
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setError('Google login failed')} />
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() =>
+            setError(
+              'Google login failed. If you see origin_mismatch, add http://localhost:3001 to Authorized JavaScript origins in Google Cloud Console.'
+            )
+          }
+        />
       </div>
     </div>
   )

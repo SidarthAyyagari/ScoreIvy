@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiJson } from '../utils/api'
+import { isAdminGateEnabled } from '../lib/config'
 
 interface User {
   id: number
@@ -19,6 +20,7 @@ interface AuthContextType {
   logout: () => void
   isAuthenticated: boolean
   isAdmin: boolean
+  adminGateEnabled: boolean
   isLoading: boolean
   refreshUser: () => Promise<void>
 }
@@ -83,6 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/')
   }
 
+  const adminGateEnabled = isAdminGateEnabled()
+  const isAdmin = adminGateEnabled ? !!user?.is_admin : !!token && !!user
+
   return (
     <AuthContext.Provider
       value={{
@@ -91,7 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isAuthenticated: !!token && !!user,
-        isAdmin: !!user?.is_admin,
+        isAdmin,
+        adminGateEnabled,
         isLoading,
         refreshUser,
       }}

@@ -88,3 +88,13 @@
   overflow: auto;
   padding: 1.5rem 2rem;
 }
+
+.devBanner {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
+}

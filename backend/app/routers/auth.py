@@ -137,7 +137,10 @@ def get_current_user(
 
 
 def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
-    """Require an authenticated admin user."""
+    """Require an authenticated admin user (unless SKIP_ADMIN_AUTH is set for local dev)."""
+    skip = os.getenv("SKIP_ADMIN_AUTH", "").strip().lower()
+    if skip in ("1", "true", "yes"):
+        return current_user
     if not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
