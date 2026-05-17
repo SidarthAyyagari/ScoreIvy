@@ -24,8 +24,8 @@ export function DevModeBanner() {
 
   return (
     <div className={styles.banner} role="status">
-      Dev mode: admin auth bypass enabled (SKIP_ADMIN_AUTH=true on the backend). Turn this off
-      before production.
+      Dev mode: SKIP_ADMIN_AUTH is on — use &quot;Continue without Google&quot; on the login page.
+      Turn off before production.
     </div>
   )
 }

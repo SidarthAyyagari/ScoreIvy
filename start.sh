@@ -98,7 +98,7 @@ if [ ! -f ".env" ]; then
 fi
 
 # Start backend in background
-python3 -m uvicorn main:app --reload > ../backend.log 2>&1 &
+python3 -m uvicorn main:app --reload --host 0.0.0.0 > ../backend.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID)${NC}\n"

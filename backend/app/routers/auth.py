@@ -36,10 +36,32 @@ def resolve_is_admin(email: str) -> bool:
 
 
 def sync_user_admin_flag(user: User, db: Session) -> None:
-    """Sync is_admin from ADMIN_EMAILS on each login."""
-    user.is_admin = resolve_is_admin(user.email)
+    """Sync is_admin from ADMIN_EMAILS on each login (dev bypass grants admin)."""
+    if is_skip_admin_auth_enabled():
+        user.is_admin = True
+    else:
+        user.is_admin = resolve_is_admin(user.email)
     db.commit()
     db.refresh(user)
+
+
+def dev_login_email() -> str:
+    return os.getenv("DEV_LOGIN_EMAIL", "dev@scoreivy.local").strip() or "dev@scoreivy.local"
+
+
+def _login_response(user: User) -> dict:
+    access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "picture": user.picture,
+            "is_admin": user.is_admin,
+        },
+    }
 
 
 class OAuthLoginRequest(BaseModel):
@@ -93,25 +115,44 @@ async def oauth_login(
             logger.info(f"Successfully updated user with ID: {user.id}")
 
         sync_user_admin_flag(user, db)
-        
-        # Create access token
-        access_token = create_access_token(data={"sub": str(user.id), "email": user.email})
         logger.info(f"Successfully generated access token for user ID: {user.id}")
-        
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "picture": user.picture,
-                "is_admin": user.is_admin,
-            }
-        }
+        return _login_response(user)
     except Exception as e:
         logger.error(f"Error in oauth_login: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.post("/dev-login")
+async def dev_login(db: Session = Depends(get_db)):
+    """Passwordless dev login (no Google). Only when SKIP_ADMIN_AUTH=true."""
+    if not is_skip_admin_auth_enabled():
+        raise HTTPException(
+            status_code=403,
+            detail="Dev login is disabled. Set SKIP_ADMIN_AUTH=true in backend/.env (local dev only).",
+        )
+
+    email = dev_login_email()
+    logger.warning("Dev login used for %s — disable SKIP_ADMIN_AUTH before production", email)
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(
+            email=email,
+            name="Dev Admin",
+            oauth_provider="dev",
+            oauth_id="dev",
+            last_login_at=datetime.now(),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        user.last_login_at = datetime.now()
+        db.commit()
+        db.refresh(user)
+
+    sync_user_admin_flag(user, db)
+    return _login_response(user)
 
 
 def get_current_user(

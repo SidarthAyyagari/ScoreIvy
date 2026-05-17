@@ -296,17 +296,31 @@ async def startup_event():
 async def shutdown_event():
     logger.info("ScoreIvy API shutting down...")
 
-# CORS middleware to allow frontend to communicate with backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # ui_user
-        "http://localhost:3001",  # ui_admin
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: localhost always; private LAN IPs when SKIP_ADMIN_AUTH (dev / no Google OAuth on LAN)
+_cors_origins = [
+    "http://localhost:3000",  # ui_user
+    "http://localhost:3001",  # ui_admin
+]
+_extra = os.getenv("CORS_EXTRA_ORIGINS", "")
+if _extra.strip():
+    _cors_origins.extend(o.strip() for o in _extra.split(",") if o.strip())
+
+from app.routers.auth import is_skip_admin_auth_enabled
+
+_cors_kwargs: dict = {
+    "allow_origins": _cors_origins,
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if is_skip_admin_auth_enabled():
+    # Lets other machines use http://10.x.x.x:3001 without listing every IP in Google OAuth
+    _cors_kwargs["allow_origin_regex"] = (
+        r"https?://(localhost|127\.0\.0\.1|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?"
+    )
+
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])

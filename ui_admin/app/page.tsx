@@ -8,10 +8,25 @@ import { apiJson } from './utils/api'
 import { isAdminGateEnabled } from './lib/config'
 import styles from './page.module.css'
 
+type LoginUser = {
+  id: number
+  email: string
+  name: string | null
+  picture: string | null
+  is_admin: boolean
+}
+
+type LoginResponse = {
+  access_token: string
+  user: LoginUser
+}
+
 export default function LoginPage() {
   const { login, isAuthenticated, isAdmin, isLoading } = useAuth()
   const router = useRouter()
   const [error, setError] = useState('')
+  const [devLoginAvailable, setDevLoginAvailable] = useState(false)
+  const [devLoginLoading, setDevLoginLoading] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('error=not_admin')) {
@@ -22,10 +37,42 @@ export default function LoginPage() {
   const adminGateEnabled = isAdminGateEnabled()
 
   useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    fetch(`${base}/api/health`)
+      .then((res) => res.json())
+      .then((data: { skip_admin_auth?: boolean }) => {
+        setDevLoginAvailable(!!data.skip_admin_auth)
+      })
+      .catch(() => setDevLoginAvailable(false))
+  }, [])
+
+  useEffect(() => {
     if (!isLoading && isAuthenticated && (isAdmin || !adminGateEnabled)) {
       router.replace('/dashboard')
     }
   }, [isLoading, isAuthenticated, isAdmin, adminGateEnabled, router])
+
+  const finishLogin = (response: LoginResponse) => {
+    if (adminGateEnabled && !response.user.is_admin) {
+      setError('Your account is not an admin. Add your email to ADMIN_EMAILS in backend/.env')
+      return
+    }
+    login(response.user, response.access_token)
+    router.push('/dashboard')
+  }
+
+  const handleDevLogin = async () => {
+    try {
+      setError('')
+      setDevLoginLoading(true)
+      const response = await apiJson<LoginResponse>('/api/auth/dev-login', { method: 'POST' })
+      finishLogin(response)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Dev login failed')
+    } finally {
+      setDevLoginLoading(false)
+    }
+  }
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     try {
@@ -46,16 +93,7 @@ export default function LoginPage() {
 
       const userInfo = JSON.parse(jsonPayload)
 
-      const response = await apiJson<{
-        access_token: string
-        user: {
-          id: number
-          email: string
-          name: string | null
-          picture: string | null
-          is_admin: boolean
-        }
-      }>('/api/auth/oauth-login', {
+      const response = await apiJson<LoginResponse>('/api/auth/oauth-login', {
         method: 'POST',
         body: JSON.stringify({
           email: userInfo.email,
@@ -66,13 +104,7 @@ export default function LoginPage() {
         }),
       })
 
-      if (adminGateEnabled && !response.user.is_admin) {
-        setError('Your account is not an admin. Add your email to ADMIN_EMAILS in backend/.env')
-        return
-      }
-
-      login(response.user, response.access_token)
-      router.push('/dashboard')
+      finishLogin(response)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     }
@@ -87,12 +119,28 @@ export default function LoginPage() {
       <div className={styles.card}>
         <h1 className={styles.title}>ScoreIvy Admin</h1>
         <p className={styles.subtitle}>
-          {adminGateEnabled
-            ? 'Sign in with a Google account listed in ADMIN_EMAILS.'
-            : 'Sign in with Google to manage content.'}
+          {devLoginAvailable
+            ? 'Dev mode: sign in without Google (LAN-friendly).'
+            : adminGateEnabled
+              ? 'Sign in with a Google account listed in ADMIN_EMAILS.'
+              : 'Sign in with Google to manage content.'}
         </p>
 
         {error && <div className={styles.error}>{error}</div>}
+
+        {devLoginAvailable && (
+          <>
+            <button
+              type="button"
+              className={styles.devButton}
+              onClick={handleDevLogin}
+              disabled={devLoginLoading}
+            >
+              {devLoginLoading ? 'Signing in…' : 'Continue without Google (dev)'}
+            </button>
+            <p className={styles.divider}>or use Google</p>
+          </>
+        )}
 
         <GoogleLogin
           onSuccess={handleGoogleSuccess}

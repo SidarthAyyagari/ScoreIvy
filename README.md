@@ -68,6 +68,27 @@ Or press `Ctrl+C` in the terminal where `start.sh` is running.
 
 Copy the same Google Client ID into `ui_admin/.env.local` (see `ui_admin/.env.local.example`).
 
+### Dev login without Google (LAN / no domain)
+
+Google OAuth does not allow raw IP origins (e.g. `http://10.0.0.174:3001`). For local or LAN testing without SSH tunnels:
+
+1. In `backend/.env` set:
+   ```
+   SKIP_ADMIN_AUTH=true
+   ```
+2. Restart the backend.
+3. On the admin login page (`http://localhost:3001` or `http://YOUR_LAN_IP:3001`), click **Continue without Google (dev)**.
+
+Optional:
+
+- `DEV_LOGIN_EMAIL=you@example.com` — which user record dev login uses (default `dev@scoreivy.local`)
+- `CORS_EXTRA_ORIGINS=http://10.0.0.174:3001` — only needed if `SKIP_ADMIN_AUTH` is false
+- In `ui_admin/.env.local`, set `NEXT_PUBLIC_API_URL=http://YOUR_LAN_IP:8000` so browsers on other machines call your host’s API (not their own `localhost`)
+
+Run Next.js bound to all interfaces so LAN devices can connect: `cd ui_admin && npm run dev` (already uses `-p 3001`; add `-H 0.0.0.0` if needed).
+
+**Turn `SKIP_ADMIN_AUTH` off before any production deploy.**
+
 ### Backend Setup
 
 1. **Set environment variables:**
