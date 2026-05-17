@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
+import styles from './RequireAdmin.module.css'
 
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, isLoading } = useAuth()
@@ -15,11 +16,15 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
       return
     }
     if (!isAdmin) {
-      router.replace('/dashboard')
+      router.replace('/?error=not_admin')
     }
   }, [isAuthenticated, isAdmin, isLoading, router])
 
-  if (isLoading || !isAuthenticated || !isAdmin) {
+  if (isLoading) {
+    return <div className={styles.loading}>Loading…</div>
+  }
+
+  if (!isAuthenticated || !isAdmin) {
     return null
   }
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ScoreIvy Startup Script
-# Starts database (Docker), backend, and frontend
+# Starts database (Docker), backend, student UI, and admin UI
 # Press Ctrl+C to stop all services
 
 set -e
@@ -17,7 +17,8 @@ echo -e "${BLUE}🚀 Starting ScoreIvy Application...${NC}\n"
 
 # Initialize PIDs (will be set when processes start)
 BACKEND_PID=""
-FRONTEND_PID=""
+USER_UI_PID=""
+ADMIN_UI_PID=""
 
 # Function to cleanup on exit (Ctrl+C)
 cleanup() {
@@ -29,24 +30,29 @@ cleanup() {
         kill $BACKEND_PID 2>/dev/null || true
         wait $BACKEND_PID 2>/dev/null || true
     else
-        # Try to kill by process name as fallback
         pkill -f "uvicorn main:app" 2>/dev/null || true
     fi
     
-    # Kill frontend process if it exists
-    if [ ! -z "$FRONTEND_PID" ] && kill -0 $FRONTEND_PID 2>/dev/null; then
-        echo -e "${YELLOW}   Stopping frontend (PID: $FRONTEND_PID)...${NC}"
-        kill $FRONTEND_PID 2>/dev/null || true
-        wait $FRONTEND_PID 2>/dev/null || true
+    # Kill student UI process if it exists
+    if [ ! -z "$USER_UI_PID" ] && kill -0 $USER_UI_PID 2>/dev/null; then
+        echo -e "${YELLOW}   Stopping student UI (PID: $USER_UI_PID)...${NC}"
+        kill $USER_UI_PID 2>/dev/null || true
+        wait $USER_UI_PID 2>/dev/null || true
+    fi
+
+    # Kill admin UI process if it exists
+    if [ ! -z "$ADMIN_UI_PID" ] && kill -0 $ADMIN_UI_PID 2>/dev/null; then
+        echo -e "${YELLOW}   Stopping admin UI (PID: $ADMIN_UI_PID)...${NC}"
+        kill $ADMIN_UI_PID 2>/dev/null || true
+        wait $ADMIN_UI_PID 2>/dev/null || true
     else
-        # Try to kill by process name as fallback
         pkill -f "next dev" 2>/dev/null || true
     fi
     
     # Note: Docker containers are NOT stopped - database keeps running
     # To stop database, run: docker-compose down
     
-    echo -e "${GREEN}✅ Backend and frontend stopped${NC}"
+    echo -e "${GREEN}✅ Backend and UIs stopped${NC}"
     echo -e "${BLUE}💡 Database is still running. To stop it, run: docker-compose down${NC}"
     exit 0
 }
@@ -97,19 +103,29 @@ BACKEND_PID=$!
 cd ..
 echo -e "${GREEN}✅ Backend started (PID: $BACKEND_PID)${NC}\n"
 
-# 3. Start Frontend
-echo -e "${GREEN}🎨 Starting frontend server...${NC}"
-cd frontend
+# 3. Start Student UI
+echo -e "${GREEN}🎨 Starting student UI (ui_user)...${NC}"
+cd ui_user
 
-# Install dependencies
-echo -e "${YELLOW}📥 Installing frontend dependencies...${NC}"
+echo -e "${YELLOW}📥 Installing ui_user dependencies...${NC}"
 npm install
 
-# Start frontend in background
-npm run dev > ../frontend.log 2>&1 &
-FRONTEND_PID=$!
+npm run dev > ../ui-user.log 2>&1 &
+USER_UI_PID=$!
 cd ..
-echo -e "${GREEN}✅ Frontend started (PID: $FRONTEND_PID)${NC}\n"
+echo -e "${GREEN}✅ Student UI started (PID: $USER_UI_PID)${NC}\n"
+
+# 4. Start Admin UI
+echo -e "${GREEN}🛠️  Starting admin UI (ui_admin)...${NC}"
+cd ui_admin
+
+echo -e "${YELLOW}📥 Installing ui_admin dependencies...${NC}"
+npm install
+
+npm run dev > ../ui-admin.log 2>&1 &
+ADMIN_UI_PID=$!
+cd ..
+echo -e "${GREEN}✅ Admin UI started (PID: $ADMIN_UI_PID)${NC}\n"
 
 # Wait a moment for servers to start
 sleep 3
@@ -121,22 +137,25 @@ echo -e "\n📍 Services:"
 echo -e "   🗄️  Database:  http://localhost:5432"
 echo -e "   🔧 Backend:    http://localhost:8000"
 echo -e "   📚 API Docs:   http://localhost:8000/docs"
-echo -e "   🎨 Frontend:   http://localhost:3000"
+echo -e "   🎨 Student UI:  http://localhost:3000"
+echo -e "   🛠️  Admin UI:    http://localhost:3001"
 echo -e "\n📋 Logs:"
-echo -e "   Backend:  tail -f backend.log"
-echo -e "   Frontend: tail -f frontend.log"
+echo -e "   Backend:   tail -f backend.log"
+echo -e "   Student:   tail -f ui-user.log"
+echo -e "   Admin:     tail -f ui-admin.log"
 echo -e "\n${YELLOW}Press Ctrl+C to stop all services${NC}\n"
 
 # Keep script running and wait for processes
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}Services are running. View logs with:${NC}"
-echo -e "   Backend:  tail -f backend.log"
-echo -e "   Frontend: tail -f frontend.log"
+echo -e "   Backend:   tail -f backend.log"
+echo -e "   Student:   tail -f ui-user.log"
+echo -e "   Admin:     tail -f ui-admin.log"
 echo -e "\n${YELLOW}Or open logs in separate terminals:${NC}"
 echo -e "   Terminal 1: tail -f backend.log"
-echo -e "   Terminal 2: tail -f frontend.log"
+echo -e "   Terminal 2: tail -f ui-user.log"
+echo -e "   Terminal 3: tail -f ui-admin.log"
 echo -e "\n${RED}Press Ctrl+C to stop all services${NC}\n"
 
 # Wait for background processes (will be interrupted by trap on Ctrl+C)
-wait $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
-
+wait $BACKEND_PID $USER_UI_PID $ADMIN_UI_PID 2>/dev/null || true

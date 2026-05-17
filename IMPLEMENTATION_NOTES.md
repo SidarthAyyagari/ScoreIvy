@@ -62,7 +62,7 @@
 
 1. **Configure Google OAuth Client ID**
    - Get Client ID from Google Cloud Console
-   - Add to `frontend/.env.local`
+   - Add to `ui_user/.env.local` and `ui_admin/.env.local`
 
 2. **Exam/Test Taking Flow**
    - Update exam page to:
@@ -84,7 +84,7 @@
 
 ## Environment Variables Needed
 
-### Frontend (`frontend/.env.local`)
+### Student UI (`ui_user/.env.local`) and Admin UI (`ui_admin/.env.local`)
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id-here
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -100,7 +100,7 @@ SECRET_KEY=your-secret-key-here
 
 1. Start database: `docker-compose up -d`
 2. Start backend: `cd backend && ./start.sh`
-3. Start frontend: `cd frontend && npm install && npm run dev`
+3. Or start UIs individually: `cd ui_user && npm run dev` (port 3000), `cd ui_admin && npm run dev` (port 3001)
 
 Or use the convenience script: `./start.sh`
 

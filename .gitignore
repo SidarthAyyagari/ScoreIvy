@@ -1,19 +1,32 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Frontend dependencies
-frontend/node_modules
-frontend/.pnp
-frontend/.pnp.js
+# Student UI (ui_user) dependencies
+ui_user/node_modules
+ui_user/.pnp
+ui_user/.pnp.js
 
-# Frontend testing
-frontend/coverage
+# Student UI testing
+ui_user/coverage
 
 # Next.js
-frontend/.next/
-frontend/out/
+ui_user/.next/
+ui_user/out/
 
-# Frontend production
-frontend/build
+# Student UI production
+ui_user/build
+
+# Admin UI (ui_admin) dependencies
+ui_admin/node_modules
+ui_admin/.pnp
+ui_admin/.pnp.js
+
+# Admin UI testing
+ui_admin/coverage
+
+ui_admin/.next/
+ui_admin/out/
+
+ui_admin/build
 
 # Python
 backend/__pycache__/
@@ -40,7 +53,12 @@ backend/.ruff_cache/
 
 # Application logs
 backend.log
+ui-user.log
+ui-admin.log
 frontend.log
+admin.log
+ui.userlog
+ui.adminlog
 
 # misc
 .DS_Store
@@ -52,9 +70,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # vercel
-frontend/.vercel
+ui_user/.vercel
+ui_admin/.vercel
 
 # typescript
-frontend/*.tsbuildinfo
-frontend/next-env.d.ts
-
+ui_user/*.tsbuildinfo
+ui_user/next-env.d.ts
+ui_admin/*.tsbuildinfo
+ui_admin/next-env.d.ts

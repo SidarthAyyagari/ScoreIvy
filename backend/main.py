@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 import os
 from sqlalchemy import text
-from app.routers import questions, tests, users, packages, auth, test_results, sections
+from app.routers import questions, tests, users, packages, auth, test_results, sections, admin
 from app.db.database import engine, SessionLocal
 
 # Configure logging
@@ -299,7 +299,10 @@ async def shutdown_event():
 # CORS middleware to allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=[
+        "http://localhost:3000",  # ui_user
+        "http://localhost:3001",  # ui_admin
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -313,6 +316,7 @@ app.include_router(tests.router, prefix="/api/tests", tags=["tests"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(packages.router, prefix="/api/packages", tags=["packages"])
 app.include_router(test_results.router, prefix="/api/test-results", tags=["test-results"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
 
 @app.get("/")

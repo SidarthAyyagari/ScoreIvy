@@ -6,7 +6,8 @@ An exam platform for creating, taking, and grading multiple-choice tests with OA
 
 ```
 ScoreIvy/
-├── frontend/          # Next.js React frontend application
+├── ui_user/           # Next.js student-facing UI
+├── ui_admin/          # Next.js admin/SME UI
 ├── backend/           # FastAPI Python backend service
 └── database/          # PostgreSQL database initialization scripts
 ```
@@ -21,7 +22,8 @@ ScoreIvy/
 This will start:
 - 🗄️  Database (Docker/PostgreSQL) on port 5432
 - 🔧 Backend (FastAPI) on `http://localhost:8000`
-- 🎨 Frontend (Next.js) on `http://localhost:3000`
+- 🎨 Student UI (Next.js) on `http://localhost:3000`
+- 🛠️ Admin UI (Next.js) on `http://localhost:3001`
 
 **Stop everything:**
 ```bash
@@ -39,18 +41,18 @@ Or press `Ctrl+C` in the terminal where `start.sh` is running.
 - Python 3.8+
 - Google OAuth Client ID (for authentication)
 
-### Frontend Setup
+### Student UI Setup (`ui_user`)
 
 1. **Get Google OAuth Client ID:**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Create a new project or select existing one
    - Enable Google+ API
    - Create OAuth 2.0 credentials
-   - Add `http://localhost:3000` to authorized JavaScript origins
+   - Add `http://localhost:3000` and `http://localhost:3001` to authorized JavaScript origins
    - Copy the Client ID
 
 2. **Set environment variable:**
-   Create `frontend/.env.local`:
+   Create `ui_user/.env.local`:
    ```
    NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id-here
    NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -58,9 +60,13 @@ Or press `Ctrl+C` in the terminal where `start.sh` is running.
 
 3. **Install dependencies:**
    ```bash
-   cd frontend
+   cd ui_user
    npm install
    ```
+
+### Admin UI Setup (`ui_admin`)
+
+Copy the same Google Client ID into `ui_admin/.env.local` (see `ui_admin/.env.local.example`).
 
 ### Backend Setup
 
