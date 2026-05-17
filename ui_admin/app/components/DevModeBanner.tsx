@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { getApiBaseUrl } from '../lib/apiBaseUrl'
 import styles from './DevModeBanner.module.css'
 
 export function DevModeBanner() {
@@ -8,8 +9,7 @@ export function DevModeBanner() {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    fetch(`${base}/api/health`)
+    fetch(`${getApiBaseUrl()}/api/health`)
       .then((res) => res.json())
       .then((data: { skip_admin_auth?: boolean }) => {
         setSkipAdminAuth(!!data.skip_admin_auth)

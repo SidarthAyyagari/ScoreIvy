@@ -88,9 +88,34 @@
   transform: translateY(0);
 }
 
+.devButton {
+  width: 100%;
+  padding: 14px 24px;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.devButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.divider {
+  text-align: center;
+  margin: 0 0 16px;
+  color: #888;
+  font-size: 0.85rem;
+}
+
 .oauthSection {
   display: flex;
   justify-content: center;
-  margin-top: 24px;
+  margin-top: 8px;
 }
 

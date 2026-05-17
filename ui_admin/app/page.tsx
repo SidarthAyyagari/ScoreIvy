@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from './contexts/AuthContext'
 import { apiJson } from './utils/api'
+import { getApiBaseUrl } from './lib/apiBaseUrl'
 import { isAdminGateEnabled } from './lib/config'
 import styles from './page.module.css'
 
@@ -37,8 +38,7 @@ export default function LoginPage() {
   const adminGateEnabled = isAdminGateEnabled()
 
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-    fetch(`${base}/api/health`)
+    fetch(`${getApiBaseUrl()}/api/health`)
       .then((res) => res.json())
       .then((data: { skip_admin_auth?: boolean }) => {
         setDevLoginAvailable(!!data.skip_admin_auth)
