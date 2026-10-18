@@ -94,7 +94,7 @@
 - [ ] SAT adaptive module routing (module 2 difficulty based on module 1 score)
 - [ ] Admin form cannot clear a value back to empty (e.g. `validity_days` → no expiry); add an explicit "clear" option
 - [ ] Trademark disclaimer (USMLE/NBME, SAT/College Board are not affiliated) on site and legal pages
-- [ ] Run uvicorn with `--proxy-headers` behind the host's load balancer so rate limits key on the real client IP
+- [x] Run uvicorn with `--proxy-headers` behind the host's load balancer so rate limits key on the real client IP
 
 ## P2 — Later
 - [ ] Image upload
