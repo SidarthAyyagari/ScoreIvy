@@ -207,6 +207,8 @@ def run_initialization_script():
                 "09_package_expiry_and_exam_deadlines.sql",
                 "10_multi_exam.sql",
                 "11_launch_exams_and_orders.sql",
+                "12_question_history.sql",
+                "13_test_builder_and_breaks.sql",
             ):
                 migration_file_path = os.path.join(base_path, "database", migration_file)
                 if not os.path.exists(migration_file_path):
@@ -336,6 +338,7 @@ _cors_kwargs: dict = {
     "allow_credentials": True,
     "allow_methods": ["*"],
     "allow_headers": ["*"],
+    "expose_headers": ["Content-Disposition"],
 }
 if is_skip_admin_auth_enabled():
     # Lets other machines use http://10.x.x.x:3001 without listing every IP in Google OAuth

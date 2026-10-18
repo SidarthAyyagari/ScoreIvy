@@ -3,9 +3,13 @@
 A test is split into parts (USMLE blocks, SAT modules) from its ``test_sections``;
 a test without sections is one part using the test's own time limit. Each part
 is timed separately, only the active part's questions are served, and a part
-is locked once submitted or once its deadline (plus grace) passes. Between
-parts the student is on a break; if they don't start the next part within
-``EXAM_MAX_BREAK_MINUTES`` the attempt ends and is graded as-is.
+is locked once submitted or once its deadline (plus grace) passes.
+
+Between parts the student may take a break. With ``Test.break_pool_minutes`` set
+(USMLE Step 1) every break draws from one shared budget; otherwise each part's
+``TestSection.break_after_minutes`` applies (SAT: 10 after Reading and Writing,
+0 between modules), defaulting to ``EXAM_MAX_BREAK_MINUTES``. When the allowed
+break runs out the next part starts on its own, as on test day.
 """
 
 import math
@@ -40,14 +44,19 @@ class Part:
     questions: List[Tuple[TestQuestion, Question]] = field(default_factory=list)
 
 
-def build_parts(db: Session, test: Test) -> List[Part]:
-    rows = (
+def build_parts(db: Session, test: Test, attempt: Optional[TestAttempt] = None) -> List[Part]:
+    """Split a test into timed parts. Without an attempt (starting fresh) archived questions are
+    left out; with one, exactly the questions that attempt started with are used."""
+    query = (
         db.query(TestQuestion, Question)
         .join(Question, TestQuestion.question_id == Question.id)
         .filter(TestQuestion.test_id == test.id)
-        .order_by(TestQuestion.question_order)
-        .all()
     )
+    if attempt is None:
+        query = query.filter(Question.is_active == True)  # noqa: E712
+    elif attempt.question_ids is not None:
+        query = query.filter(Question.id.in_(attempt.question_ids))
+    rows = query.order_by(TestQuestion.question_order).all()
     if not rows:
         return []
 
@@ -105,6 +114,7 @@ def create_attempt(db: Session, user_id: int, user_package_id: int, test: Test, 
         user_package_id=user_package_id,
         started_at=now,
         total_questions=sum(len(p.questions) for p in parts),
+        question_ids=[question.id for part in parts for _, question in part.questions],
     )
     db.add(attempt)
     db.flush()
@@ -139,10 +149,39 @@ def window_open(section: AttemptSection) -> bool:
     return section.started_at is not None and deadline is not None and utcnow() <= deadline + GRACE
 
 
-def advance(db: Session, attempt: TestAttempt) -> bool:
-    """Apply timeouts: lock sections past their deadline, end attempts abandoned on a break.
+def _break_used(attempt: TestAttempt) -> timedelta:
+    used = timedelta(0)
+    previous: Optional[AttemptSection] = None
+    for section in attempt.sections:
+        if previous is not None and section.started_at is not None and previous.completed_at is not None:
+            used += max(timedelta(0), as_aware(section.started_at) - as_aware(previous.completed_at))
+        previous = section
+    return used
 
-    Grades the attempt once every section is done. Returns True if anything changed.
+
+def break_allowance(db: Session, attempt: TestAttempt, section: AttemptSection) -> Tuple[timedelta, str]:
+    """Break the student may take before ``section`` starts, and whether it is a shared ``pool``
+    or a fixed ``scheduled`` break."""
+    pool = attempt.test.break_pool_minutes
+    if pool is not None:
+        return max(timedelta(0), timedelta(minutes=pool) - _break_used(attempt)), "pool"
+    previous = next((s for s in attempt.sections if s.section_order == section.section_order - 1), None)
+    test_section = db.get(TestSection, previous.test_section_id) if previous and previous.test_section_id else None
+    if test_section is not None and test_section.break_after_minutes is not None:
+        return timedelta(minutes=test_section.break_after_minutes), "scheduled"
+    return MAX_BREAK, "scheduled"
+
+
+def _break_ends_at(db: Session, attempt: TestAttempt, section: AttemptSection):
+    previous = next((s for s in attempt.sections if s.section_order == section.section_order - 1), None)
+    started = as_aware(previous.completed_at) if previous else as_aware(attempt.started_at)
+    allowance, kind = break_allowance(db, attempt, section)
+    return started + allowance, kind
+
+
+def advance(db: Session, attempt: TestAttempt) -> bool:
+    """Apply timeouts: lock sections past their deadline and start the next section when its
+    break runs out. Grades the attempt once every section is done. Returns True if anything changed.
     """
     if attempt.completed_at is not None:
         return False
@@ -151,27 +190,25 @@ def advance(db: Session, attempt: TestAttempt) -> bool:
         return True
     now = utcnow()
     changed = False
-    previous_end = as_aware(attempt.started_at) or now
     for section in attempt.sections:
         if section.completed_at is not None:
-            previous_end = as_aware(section.completed_at)
             continue
-        if section.started_at is not None:
-            if window_open(section):
+        if section.started_at is None:
+            starts_at, _ = _break_ends_at(db, attempt, section)
+            if now < starts_at:
                 break
-            section.completed_at = section.deadline_at
-            previous_end = as_aware(section.deadline_at)
+            _start_section(section, starts_at)
             changed = True
-            continue
-        if now > previous_end + MAX_BREAK:
-            for remaining in attempt.sections:
-                if remaining.completed_at is None:
-                    remaining.completed_at = now
-            changed = True
-        break
+        if window_open(section):
+            break
+        section.completed_at = section.deadline_at
+        changed = True
 
-    if changed and current_section(attempt) is None:
+    if changed:
+        db.flush()
+    if current_section(attempt) is None:
         finalize(db, attempt)
+        return True
     return changed
 
 
@@ -230,7 +267,7 @@ def _require_active(attempt: TestAttempt, section_order: Optional[int] = None) -
 
 def save_answer(db: Session, attempt: TestAttempt, question_id: int, selected, time_spent_seconds) -> None:
     section = _require_active(attempt)
-    part = _part_for(section, build_parts(db, attempt.test))
+    part = _part_for(section, build_parts(db, attempt.test, attempt))
     question = next((q for _, q in (part.questions if part else []) if q.id == question_id), None)
     if question is None:
         raise HTTPException(status_code=400, detail="Question is not part of the current section")
@@ -241,7 +278,7 @@ def save_answer(db: Session, attempt: TestAttempt, question_id: int, selected, t
 def submit_section(db: Session, attempt: TestAttempt, section_order: int, answers: Iterable) -> None:
     """Lock the active section with its final answers; grades the attempt after the last one."""
     section = _require_active(attempt, section_order)
-    part = _part_for(section, build_parts(db, attempt.test))
+    part = _part_for(section, build_parts(db, attempt.test, attempt))
     questions = {q.id: q for _, q in (part.questions if part else [])}
     rows = _existing_answers(db, attempt)
     for answer in answers:
@@ -249,8 +286,7 @@ def submit_section(db: Session, attempt: TestAttempt, section_order: int, answer
         if question is not None:
             _record_answer(db, attempt, rows, question, answer.selected_answer, answer.time_spent_seconds)
     section.completed_at = utcnow()
-    if current_section(attempt) is None:
-        finalize(db, attempt)
+    advance(db, attempt)
 
 
 def start_next_section(db: Session, attempt: TestAttempt, section_order: int) -> None:
@@ -278,7 +314,7 @@ def finalize(db: Session, attempt: TestAttempt) -> None:
             section.completed_at = now
 
     test = attempt.test
-    parts = build_parts(db, test)
+    parts = build_parts(db, test, attempt)
     rows = _existing_answers(db, attempt)
     subject_totals: Dict[Optional[int], List[int]] = {}
     correct_count = 0
@@ -331,7 +367,7 @@ def finalize(db: Session, attempt: TestAttempt) -> None:
 def session_payload(db: Session, attempt: TestAttempt) -> dict:
     test = attempt.test
     exam = db.get(Exam, test.exam_id) if test.exam_id else None
-    parts = build_parts(db, test)
+    parts = build_parts(db, test, attempt)
     active = current_section(attempt)
     now = utcnow()
 
@@ -369,12 +405,12 @@ def session_payload(db: Session, attempt: TestAttempt) -> dict:
         return payload
 
     if active.started_at is None:
-        previous = [s for s in attempt.sections if s.section_order < active.section_order]
-        break_started = as_aware(previous[-1].completed_at) if previous else now
+        starts_at, kind = _break_ends_at(db, attempt, active)
         payload["status"] = "between_sections"
         payload["next_section"] = {
             **sections[active.section_order - 1],
-            "break_seconds_remaining": max(0, int((break_started + MAX_BREAK - now).total_seconds())),
+            "break_seconds_remaining": max(0, int((starts_at - now).total_seconds())),
+            "break_kind": kind,
         }
         return payload
 

@@ -155,6 +155,21 @@ class Tag(Base):
     name = Column(String, nullable=False)
 
 
+class QuestionRevision(Base):
+    """One entry per change to a question, with the full question state after the change
+    (before it, for ``deleted``). ``question_id`` has no foreign key so history outlives deletes."""
+    __tablename__ = "question_revisions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    question_id = Column(Integer, nullable=False, index=True)
+    action = Column(String, nullable=False)  # created, imported, updated, archived, restored, reverted, deleted
+    snapshot = Column(JSON, nullable=False)
+    note = Column(String, nullable=True)
+    changed_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    changed_by_email = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class QuestionTag(Base):
     __tablename__ = "question_tags"
 
@@ -173,6 +188,8 @@ class Test(Base):
     question_count = Column(Integer, nullable=False)  # Number of questions in the test
     # Optional raw→scaled conversion: {"overall": {"0": 1, ...}} or {"sections": {"<section_id>": {"0": 200, ...}}}
     scoring = Column(JSON, nullable=True)
+    # Shared break budget across all breaks (USMLE Step 1: 45). NULL = per-part TestSection.break_after_minutes.
+    break_pool_minutes = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
 
@@ -189,11 +206,14 @@ class TestSection(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
-    section_id = Column(Integer, ForeignKey("sections.id"), nullable=False)
+    section_id = Column(Integer, ForeignKey("sections.id"), nullable=True)  # NULL for mixed-subject parts
     section_order = Column(Integer, nullable=False)  # Order of section in the test (1, 2, 3)
     question_count = Column(Integer, nullable=False)  # Number of questions in this section for this test
     name = Column(String, nullable=True)  # Display name, e.g. "Block 1" or "Math — Module 2"
     time_limit_minutes = Column(Integer, nullable=True)  # Separately timed section; NULL = share of test time
+    # Break allowed after this part (0 = next part starts immediately); NULL = EXAM_MAX_BREAK_MINUTES.
+    # Ignored when the test has a shared break_pool_minutes.
+    break_after_minutes = Column(Integer, nullable=True)
 
     # Relationships
     test = relationship("Test", back_populates="test_sections")
@@ -207,7 +227,7 @@ class TestQuestion(Base):
     id = Column(Integer, primary_key=True, index=True)
     test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
-    section_id = Column(Integer, ForeignKey("sections.id"), nullable=False)
+    section_id = Column(Integer, ForeignKey("sections.id"), nullable=True)
     test_section_id = Column(Integer, ForeignKey("test_sections.id", ondelete="SET NULL"), nullable=True)  # Timed block/module
     question_order = Column(Integer, nullable=False)  # Order of question in the test
     section_question_order = Column(Integer, nullable=False)  # Order within the section
@@ -233,6 +253,9 @@ class TestAttempt(Base):
     correct_answers = Column(Integer, nullable=True)
     scaled_score = Column(Integer, nullable=True)  # From Test.scoring when configured
     section_scores = Column(JSON, nullable=True)  # [{"section_id", "name", "correct", "total", "scaled"}]
+    # Question ids served to this attempt, fixed at start so later archiving doesn't change it.
+    # NULL for attempts started before snapshots existed (they use every question in the test).
+    question_ids = Column(JSON, nullable=True)
     
     # Relationships
     user = relationship("User", back_populates="test_attempts")

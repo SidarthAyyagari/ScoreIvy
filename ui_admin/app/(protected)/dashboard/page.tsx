@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { RESOURCES } from '../../lib/resources'
+import { RESOURCES, TOOLS } from '../../lib/resources'
 import styles from './page.module.css'
 
 export default function DashboardPage() {
@@ -12,6 +12,12 @@ export default function DashboardPage() {
         Manage all ScoreIvy data. Only users listed in ADMIN_EMAILS can access this app.
       </p>
       <div className={styles.grid}>
+        {TOOLS.map((tool) => (
+          <Link key={tool.href} href={tool.href} className={styles.card}>
+            <h2>{tool.label}</h2>
+            <p>{tool.description}</p>
+          </Link>
+        ))}
         {RESOURCES.map((resource) => (
           <Link key={resource.key} href={`/resources/${resource.key}`} className={styles.card}>
             <h2>{resource.label}</h2>

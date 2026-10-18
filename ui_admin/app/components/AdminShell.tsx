@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '../contexts/AuthContext'
-import { RESOURCES } from '../lib/resources'
+import { RESOURCES, TOOLS } from '../lib/resources'
 import { DevModeBanner } from './DevModeBanner'
 import styles from './AdminShell.module.css'
 
@@ -24,6 +24,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           >
             Dashboard
           </Link>
+          {TOOLS.map((tool) => (
+            <Link
+              key={tool.href}
+              href={tool.href}
+              className={pathname.startsWith(tool.href) ? styles.navActive : styles.navLink}
+            >
+              {tool.label}
+            </Link>
+          ))}
           {RESOURCES.map((resource) => (
             <Link
               key={resource.key}

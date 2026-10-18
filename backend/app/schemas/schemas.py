@@ -33,6 +33,7 @@ class QuestionCreate(BaseModel):
     explanation: Optional[str] = None
     difficulty: str = "medium"
     tags: List[str] = []  # "category:name", e.g. "system:Cardiovascular"
+    is_active: bool = True  # False imports the question as archived
 
     @field_validator("question_text")
     @classmethod
@@ -103,9 +104,47 @@ class QuestionResponse(BaseModel):
     explanation: Optional[str]
     difficulty: str
     created_at: datetime
+    is_active: bool = True
+    tags: List[str] = []
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def tags_as_labels(cls, value) -> List[str]:
+        return [tag if isinstance(tag, str) else f"{tag.category}:{tag.name}" for tag in value or []]
 
     class Config:
         from_attributes = True
+
+
+class QuestionPage(BaseModel):
+    items: List[QuestionResponse]
+    total: int
+
+
+class QuestionUsage(BaseModel):
+    tests: List[Dict[str, object]]
+    attempt_count: int  # Attempts that were served this question; > 0 means delete archives instead
+
+
+class QuestionDetailResponse(QuestionResponse):
+    usage: QuestionUsage
+
+
+class QuestionRevisionResponse(BaseModel):
+    id: int
+    question_id: int
+    action: str
+    snapshot: Dict[str, object]
+    note: Optional[str]
+    changed_by_email: Optional[str]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class QuestionRemoveResponse(BaseModel):
+    result: str  # "deleted" (never served, gone for good) or "archived" (kept for past results)
 
 
 class QuestionsBulkCreate(BaseModel):

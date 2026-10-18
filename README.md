@@ -140,33 +140,69 @@ Without Stripe keys (development only), **Buy** grants the package immediately (
 
 ### Exams (USMLE, SAT, ...)
 
-One site serves several exams. In the admin UI:
+One site serves several exams. USMLE Step 1 and SAT are created automatically (`database/11_launch_exams_and_orders.sql`). Each exam's `tools` (admin → Exams) controls the in-exam tools: `"lab_values"`, `"calculator"`, `"reference_sheet"`, `"notes"`. **Sections** (admin → Sections) are the subject areas used for score breakdowns (e.g. Physiology, SAT Math).
 
-1. **Exams** — create one row per exam (`slug` like `usmle-step-1` or `sat`). `tools` is a JSON list of in-exam tools to show: `"lab_values"`, `"calculator"`, `"reference_sheet"`, `"notes"`.
-2. **Sections** — subject areas used for score breakdowns (e.g. Physiology, SAT Math), each with an `exam_id`.
-3. **Questions** — set `exam_id`, `section_id`, and `question_type`:
-   - `multiple_choice`: `answer_choices` JSON with 2–10 keys from A–J, `correct_answer` is a letter.
-   - `numeric_entry`: `answer_choices` `{}`, `correct_answer` like `3/4` or `.75`; extra forms go in `accepted_answers`. Values are compared exactly, so `3/4` matches `0.75`.
-   - `tags`: JSON list of `"category:name"` (e.g. `"system:Cardiovascular"`); missing tags are created automatically.
-4. **Tests** — set `exam_id`. Optional `scoring` maps raw correct counts to scaled scores: `{"sections": {"<section id>": {"0": 200, "44": 800}}, "overall": {...}}`. Each table uses the highest key that does not exceed the raw count. Without `overall`, the scaled score is the sum of section scaled scores.
-5. **Test Sections** — the timed parts of a test (USMLE blocks, SAT modules), with `name` and `time_limit_minutes`. Students take them in order; a submitted or expired part is locked. Between parts they get a break of up to `EXAM_MAX_BREAK_MINUTES` (backend env, default 60). A test with no test sections is a single part timed by the test's `time_limit_minutes`.
-6. **Test Questions** — assign questions to a test, with `test_section_id` pointing at the timed part.
-7. **Packages** — set `exam_id` so the pack appears under that exam on the student dashboard.
+A "test" is a full-length exam in the real format. The usual workflow:
 
-#### CSV question upload
+1. **Write questions** in admin → **Question Bank** (or import a CSV, see below).
+2. **Build a test** in admin → **Test Builder**: pick the exam, apply the USMLE Step 1 or SAT preset, preview, and build. Optionally add it straight to a package.
+3. **Sell it**: the test must be in a package (admin → Packages, with `exam_id` set) for students to see it.
 
-`POST /api/questions/upload?exam_id=<id>` (admin) accepts a CSV with these columns:
+#### Question Bank
+
+- Experts write questions in a form: stem, optional image URL, choices A–J with the correct one marked (or a numeric answer plus other accepted forms), explanation, difficulty, and `category:name` tags. **Save and add another** keeps the exam, section, type, and tags for fast entry.
+- **History**: every create, edit, import, archive, restore, revert, and delete is recorded with who did it and when, and any earlier version can be restored with **Revert to this version**. History is kept even after a question is deleted.
+- **Delete** permanently removes a question only if no student has ever been served it. Otherwise it is **archived**: it is left out of every test a student starts from then on, while attempts already in progress and past results keep it. Archived questions can be restored.
+- **Export CSV** downloads questions (including archived) in the import format, so a file can be re-imported to restore them. Re-imported rows become new questions.
+
+#### Test Builder
+
+Each part (USMLE block, SAT module) has a question count, time limit, and optionally a set of subject sections to draw from. Questions are picked at random from active questions of that exam, split across the allowed sections in proportion to how many each has. By default only questions not already in another test are used, so a student who buys several tests never sees a repeat. **Preview** shows how many questions each part would get and reports any shortfall before anything is saved.
+
+Presets match the real exams:
+
+| Exam | Parts | Breaks |
+| --- | --- | --- |
+| USMLE Step 1 | 7 blocks × 40 questions, 60 min each | One shared 45-minute budget across all breaks |
+| SAT | Reading and Writing 2 × 27 (32 min), Math 2 × 22 (35 min) | None between modules; 10 minutes between Reading and Writing and Math |
+
+Questions needed per full test: Step 1 = 280, SAT = 98.
+
+#### Timing and breaks
+
+Students take parts in order and can't go back to a part once it's submitted or its time runs out. Between parts:
+
+- With a **shared break budget** (`tests.break_pool_minutes`), every break draws from it and unused time carries over.
+- Otherwise each part's **break after** (`test_sections.break_after_minutes`) applies; `0` starts the next part immediately. Unset falls back to `EXAM_MAX_BREAK_MINUTES` (backend env, default 60).
+
+When the break runs out, the next part starts automatically, as on test day. A test with no parts is a single part timed by the test's `time_limit_minutes`.
+
+Optional `tests.scoring` maps raw correct counts to scaled scores: `{"sections": {"<section id>": {"0": 200, "44": 800}}, "overall": {...}}`. Each table uses the highest key that does not exceed the raw count. Without `overall`, the scaled score is the sum of section scaled scores.
+
+#### CSV question import
+
+Admin → Question Bank → **Import CSV** (or `POST /api/questions/upload-csv?exam_id=<id>`). Download the template from the import page. Columns:
 
 | Column | Required | Notes |
 | --- | --- | --- |
 | `question_text`, `correct_answer` | yes | |
 | `choice_a` … `choice_j` | multiple choice | at least two |
-| `exam` | no | slug or id; defaults to the `exam_id` query parameter |
+| `exam` | no | slug or id; defaults to the chosen exam |
 | `section_id`, `image_url`, `explanation`, `difficulty` | no | difficulty is easy/medium/hard |
 | `question_type` | no | `multiple_choice` (default) or `numeric_entry` |
 | `accepted_answers`, `tags` | no | `;`-separated, e.g. `system:Renal;discipline:Physiology` |
+| `status` | no | `active` (default) or `archived` |
+| `id` | no | written by export; ignored on import |
 
 The whole file is validated first; nothing is imported if any row has errors.
+
+#### Backups
+
+The question bank is protected three ways:
+
+1. **Database backups**: use a managed Postgres with daily backups and point-in-time restore (set up with hosting).
+2. **Question history**: undo a bad edit to one question without touching anything else.
+3. **CSV export**: a portable copy you can keep anywhere and re-import.
 
 ### Database Setup
 

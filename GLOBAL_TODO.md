@@ -26,8 +26,15 @@
 - [x] Section and scaled scores (`tests.scoring` lookup tables) on results
 - [x] Per-exam tools in exam UI (calculator via Desmos, reference sheet, notes, lab values placeholder)
 - [x] Launch both exams together: USMLE Step 1 and SAT (seeded by `database/11_launch_exams_and_orders.sql`)
-- [ ] Create the first packs per exam in production admin
-- [ ] Load real question content per exam
+- [x] Question Bank editor for experts (search/filter, form, tags, save-and-add-another)
+- [x] Question history with revert; archive vs. delete (delete only if never served); CSV export/import round trip
+- [x] Test Builder: full-length tests from unused questions (Step 1 7×40, SAT 2×27 + 2×22 presets), preview before build
+- [x] Real break rules: Step 1 shared 45-min budget, SAT 10-min break between R&W and Math; overrun auto-starts next part
+- [ ] Load real question content per exam (Step 1: 280/test, SAT: 98/test)
+- [ ] Build tests and create the first packs per exam in production admin
+- [ ] Section names are globally unique; scope uniqueness per exam
+- [ ] Hide Buy on packs the student already owns
+- [ ] Try the full exam flow (both exams) in a browser against real Postgres
 
 ## P0 — Launch: payments, hosting, content
 - [x] Stripe Checkout for packs + signed webhook that grants the package; refunds revoke credits; orders table + admin view

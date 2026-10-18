@@ -7,7 +7,7 @@ import logging
 
 from app.db.database import get_db
 from app.deps.admin import require_admin
-from app.services import questions as question_service
+from app.services import test_builder
 from app.models.models import (
     AttemptSection,
     Exam,
@@ -29,10 +29,10 @@ from app.models.models import (
 from app.schemas.schemas import (
     SectionCreate,
     SectionUpdate,
-    QuestionCreate,
-    QuestionUpdate,
 )
 from app.schemas.admin_schemas import (
+    BuildTestRequest,
+    BuildTestResult,
     AdminAttemptSectionResponse,
     AdminOrderResponse,
     AdminExamCreate,
@@ -70,7 +70,6 @@ from app.schemas.admin_schemas import (
     AdminQuestionAttemptCreate,
     AdminQuestionAttemptUpdate,
     AdminQuestionAttemptResponse,
-    AdminQuestionResponse,
     AdminSectionResponse,
 )
 
@@ -218,6 +217,41 @@ def list_attempt_sections(
     if test_attempt_id is not None:
         query = query.filter(AttemptSection.test_attempt_id == test_attempt_id)
     return query.order_by(AttemptSection.test_attempt_id, AttemptSection.section_order).offset(skip).limit(limit).all()
+
+
+@router.get("/test-builder/pool")
+def test_builder_pool(exam_id: int, exclude_used: bool = True, db: Session = Depends(get_db)):
+    """How many questions the builder can draw from, per subject section."""
+    pool = test_builder.question_pool(db, exam_id, exclude_used)
+    names = {s.id: s.name for s in db.query(Section).filter(Section.exam_id == exam_id)}
+    counts: dict = {}
+    for question in pool:
+        counts[question.section_id] = counts.get(question.section_id, 0) + 1
+    return {
+        "total": len(pool),
+        "by_section": [
+            {"section_id": key, "name": names.get(key, "No section"), "count": value}
+            for key, value in sorted(counts.items(), key=lambda item: names.get(item[0], ""))
+        ],
+    }
+
+
+@router.post("/test-builder", response_model=BuildTestResult)
+def build_test(payload: BuildTestRequest, db: Session = Depends(get_db)):
+    """Assemble a test from unused bank questions. With ``dry_run`` nothing is saved."""
+    if not db.get(Exam, payload.exam_id):
+        raise HTTPException(status_code=404, detail="Exam not found")
+    try:
+        result = test_builder.build_test(db, payload)
+    except test_builder.BuildError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc))
+    if payload.dry_run:
+        db.rollback()
+    else:
+        db.commit()
+        logger.info("Built test %s (%s questions)", result.test_id, sum(p.question_count for p in result.parts))
+    return result
 
 
 @router.get("/orders", response_model=List[AdminOrderResponse])
@@ -427,63 +461,6 @@ def delete_section(section_id: int, db: Session = Depends(get_db)):
     db.delete(item)
     db.commit()
     return {"message": "Section deleted"}
-
-
-# --- Questions ---
-
-
-@router.get("/questions", response_model=List[AdminQuestionResponse])
-def list_questions(
-    skip: int = 0,
-    limit: int = 200,
-    section_id: Optional[int] = None,
-    include_inactive: bool = True,
-    db: Session = Depends(get_db),
-):
-    query = db.query(Question)
-    if section_id is not None:
-        query = query.filter(Question.section_id == section_id)
-    if not include_inactive:
-        query = query.filter(Question.is_active == True)
-    return query.offset(skip).limit(limit).all()
-
-
-@router.get("/questions/{question_id}", response_model=AdminQuestionResponse)
-def get_question(question_id: int, db: Session = Depends(get_db)):
-    return _get_or_404(db, Question, question_id)
-
-
-@router.post("/questions", response_model=AdminQuestionResponse, status_code=201)
-def create_question(payload: QuestionCreate, db: Session = Depends(get_db)):
-    try:
-        item = question_service.create_question(db, payload)
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(exc))
-    db.commit()
-    db.refresh(item)
-    return item
-
-
-@router.put("/questions/{question_id}", response_model=AdminQuestionResponse)
-def update_question(question_id: int, payload: QuestionUpdate, db: Session = Depends(get_db)):
-    item = _get_or_404(db, Question, question_id)
-    try:
-        question_service.update_question(db, item, payload.model_dump(exclude_unset=True))
-    except ValueError as exc:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(exc))
-    db.commit()
-    db.refresh(item)
-    return item
-
-
-@router.delete("/questions/{question_id}")
-def delete_question(question_id: int, db: Session = Depends(get_db)):
-    item = _get_or_404(db, Question, question_id)
-    item.is_active = False
-    db.commit()
-    return {"message": "Question deactivated"}
 
 
 # --- Tests ---

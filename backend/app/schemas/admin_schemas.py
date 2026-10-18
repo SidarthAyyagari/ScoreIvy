@@ -70,6 +70,43 @@ class AdminQuestionTagResponse(BaseModel):
         from_attributes = True
 
 
+class BuildPart(BaseModel):
+    name: str = Field(..., min_length=1)
+    question_count: int = Field(..., gt=0, le=200)
+    time_limit_minutes: int = Field(..., gt=0)
+    section_ids: Optional[List[int]] = None  # Limit to these subjects; empty = any
+    break_after_minutes: Optional[int] = Field(None, ge=0)  # Ignored when break_pool_minutes is set
+
+
+class BuildTestRequest(BaseModel):
+    exam_id: int
+    name: str = Field(..., min_length=1)
+    description: Optional[str] = None
+    parts: List[BuildPart] = Field(..., min_length=1, max_length=20)
+    break_pool_minutes: Optional[int] = Field(None, ge=0)
+    scoring: Optional[Dict[str, Any]] = None
+    exclude_used: bool = True  # Skip questions already in another test
+    package_id: Optional[int] = None  # Add the new test to this package
+    seed: Optional[int] = None
+    dry_run: bool = False
+
+
+class BuildPartResult(BaseModel):
+    name: str
+    question_count: int
+    time_limit_minutes: int
+    available: int
+    by_section: Dict[str, int]
+
+
+class BuildTestResult(BaseModel):
+    test_id: Optional[int]
+    parts: List[BuildPartResult]
+    pool_size: int
+    pool_remaining: int
+    problems: List[str]
+
+
 class AdminOrderResponse(BaseModel):
     id: int
     user_id: int
@@ -230,6 +267,7 @@ class AdminTestCreate(BaseModel):
     time_limit_minutes: int = Field(..., gt=0)
     question_count: int = Field(..., ge=0)
     scoring: Optional[Dict[str, Any]] = None
+    break_pool_minutes: Optional[int] = Field(None, ge=0)
     is_active: bool = True
 
 
@@ -240,6 +278,7 @@ class AdminTestUpdate(BaseModel):
     time_limit_minutes: Optional[int] = Field(None, gt=0)
     question_count: Optional[int] = Field(None, ge=0)
     scoring: Optional[Dict[str, Any]] = None
+    break_pool_minutes: Optional[int] = Field(None, ge=0)
     is_active: Optional[bool] = None
 
 
@@ -251,6 +290,7 @@ class AdminTestResponse(BaseModel):
     time_limit_minutes: int
     question_count: int
     scoring: Optional[Dict[str, Any]] = None
+    break_pool_minutes: Optional[int] = None
     created_at: datetime
     is_active: bool
 
@@ -260,11 +300,12 @@ class AdminTestResponse(BaseModel):
 
 class AdminTestSectionCreate(BaseModel):
     test_id: int
-    section_id: int
+    section_id: Optional[int] = None
     section_order: int = Field(..., ge=1)
     question_count: int = Field(..., ge=0)
     name: Optional[str] = None
     time_limit_minutes: Optional[int] = Field(None, gt=0)
+    break_after_minutes: Optional[int] = Field(None, ge=0)
 
 
 class AdminTestSectionUpdate(BaseModel):
@@ -274,16 +315,18 @@ class AdminTestSectionUpdate(BaseModel):
     question_count: Optional[int] = Field(None, ge=0)
     name: Optional[str] = None
     time_limit_minutes: Optional[int] = Field(None, gt=0)
+    break_after_minutes: Optional[int] = Field(None, ge=0)
 
 
 class AdminTestSectionResponse(BaseModel):
     id: int
     test_id: int
-    section_id: int
+    section_id: Optional[int] = None
     section_order: int
     question_count: int
     name: Optional[str] = None
     time_limit_minutes: Optional[int] = None
+    break_after_minutes: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -292,7 +335,7 @@ class AdminTestSectionResponse(BaseModel):
 class AdminTestQuestionCreate(BaseModel):
     test_id: int
     question_id: int
-    section_id: int
+    section_id: Optional[int] = None
     test_section_id: Optional[int] = None
     question_order: int = Field(..., ge=1)
     section_question_order: int = Field(..., ge=1)
@@ -311,7 +354,7 @@ class AdminTestQuestionResponse(BaseModel):
     id: int
     test_id: int
     question_id: int
-    section_id: int
+    section_id: Optional[int] = None
     test_section_id: Optional[int] = None
     question_order: int
     section_question_order: int

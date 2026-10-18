@@ -42,7 +42,7 @@ interface ExamSession {
     questions: Question[]
     saved_answers: { [questionId: string]: string }
   } | null
-  next_section: (SectionSummary & { break_seconds_remaining: number }) | null
+  next_section: (SectionSummary & { break_seconds_remaining: number; break_kind: 'pool' | 'scheduled' }) | null
 }
 
 const TOOL_LABELS: Record<Tool, string> = {
@@ -298,7 +298,10 @@ function ExamScreen() {
             Next: <strong>{next.name}</strong> ({next.question_count} questions, {next.time_limit_minutes} minutes)
           </p>
           <p className={styles.breakTimer}>
-            Break time remaining: {formatTime(timeRemaining)}. The test ends automatically if the break runs out.
+            {next.break_kind === 'pool'
+              ? `Total break time left for this test: ${formatTime(timeRemaining)}. Time you don't use now stays available for later breaks.`
+              : `Break time remaining: ${formatTime(timeRemaining)}.`}{' '}
+            {next.name} starts automatically when it runs out.
           </p>
           <button className={styles.proceedButton} onClick={startNextSection} disabled={submitting}>
             {submitting ? 'Starting…' : `Start ${next.name}`}

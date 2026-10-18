@@ -167,7 +167,7 @@ def test_multi_block_exam_serves_and_locks_one_block_at_a_time(client, db, stude
     assert scores == {"Physiology": (1, 2), "Pharmacology": (1, 1)}
 
 
-def test_block_deadline_locks_block_and_break_limit_ends_attempt(client, db, student, catalog):
+def test_abandoned_attempt_runs_out_every_block_and_is_graded(client, db, student, catalog):
     user_package = _purchase(client, student, catalog["big_package"])
     session = _start(client, student, catalog["blocks"].id, user_package["id"]).json()
     attempt_id = session["attempt_id"]

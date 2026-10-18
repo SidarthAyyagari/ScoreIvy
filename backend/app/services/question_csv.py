@@ -1,11 +1,11 @@
 import csv
 import io
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from app.models.models import Exam, Question, Section
+from app.models.models import Exam, Question, Section, User
 from app.schemas.schemas import QuestionCreate
 from app.services.questions import create_question
 
@@ -22,11 +22,18 @@ OPTIONAL_COLUMNS = frozenset(
         "image_url",
         "explanation",
         "difficulty",
+        "status",  # active (default) or archived
+        "id",  # Written by export for reference; ignored on import (rows are always added as new questions)
     }
 )
+EXPORT_COLUMNS = (
+    "id", "exam", "section_id", "question_type", "question_text", *CHOICE_COLUMNS,
+    "correct_answer", "accepted_answers", "tags", "image_url", "explanation", "difficulty", "status",
+)
+STATUSES = {"active": True, "archived": False}
 ALLOWED_COLUMNS = REQUIRED_COLUMNS | OPTIONAL_COLUMNS
 LIST_SEPARATOR = ";"
-MAX_ROWS = 2000
+MAX_ROWS = 10000
 
 
 class CsvValidationErrorDetail:
@@ -157,6 +164,11 @@ def parse_and_validate_csv(
                 continue
             section_id = int(section_raw)
 
+        status_raw = row.get("status", "").strip().lower() or "active"
+        if status_raw not in STATUSES:
+            errors.append(CsvValidationErrorDetail(line_number, "status must be active or archived", column="status"))
+            continue
+
         try:
             question = QuestionCreate(
                 exam_id=exam_id,
@@ -170,6 +182,7 @@ def parse_and_validate_csv(
                 explanation=row.get("explanation") or None,
                 difficulty=row.get("difficulty", "").strip() or "medium",
                 tags=_split_list(row.get("tags", "")),
+                is_active=STATUSES[status_raw],
             )
         except ValidationError as exc:
             for message, column in _format_validation_error(exc):
@@ -184,9 +197,35 @@ def parse_and_validate_csv(
     return valid_questions, errors, data_row_count
 
 
-def import_questions(db: Session, questions: List[QuestionCreate]) -> List[Question]:
-    created = [create_question(db, question) for question in questions]
+def import_questions(db: Session, questions: List[QuestionCreate], actor: Optional[User] = None) -> List[Question]:
+    created = [create_question(db, question, actor, action="imported") for question in questions]
     db.commit()
     for question in created:
         db.refresh(question)
     return created
+
+
+def export_questions_csv(questions: Iterable[Question], exam_slugs: Dict[int, str]) -> str:
+    """CSV in the import format, so an export can be re-imported as a restore."""
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=EXPORT_COLUMNS)
+    writer.writeheader()
+    for question in questions:
+        row = {
+            "id": question.id,
+            "exam": exam_slugs.get(question.exam_id, ""),
+            "section_id": question.section_id or "",
+            "question_type": question.question_type,
+            "question_text": question.question_text,
+            "correct_answer": question.correct_answer,
+            "accepted_answers": LIST_SEPARATOR.join(question.accepted_answers or []),
+            "tags": LIST_SEPARATOR.join(f"{t.category}:{t.name}" for t in question.tags),
+            "image_url": question.image_url or "",
+            "explanation": question.explanation or "",
+            "difficulty": question.difficulty or "",
+            "status": "active" if question.is_active else "archived",
+        }
+        for index, column in enumerate(CHOICE_COLUMNS):
+            row[column] = (question.answer_choices or {}).get(chr(ord("A") + index), "")
+        writer.writerow(row)
+    return out.getvalue()

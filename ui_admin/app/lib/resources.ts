@@ -18,6 +18,12 @@ export interface ResourceDef {
   readOnlyResource?: boolean
 }
 
+/** Purpose-built pages listed above the generic table editors. */
+export const TOOLS = [
+  { href: '/questions', label: 'Question Bank', description: 'Write, edit, archive, import, and export questions, with full history' },
+  { href: '/test-builder', label: 'Test Builder', description: 'Build full-length tests (Step 1 blocks, SAT modules) from unused questions' },
+]
+
 export const RESOURCES: ResourceDef[] = [
   {
     key: 'exams',
@@ -136,31 +142,6 @@ export const RESOURCES: ResourceDef[] = [
     ],
   },
   {
-    key: 'questions',
-    label: 'Questions',
-    apiPath: 'questions',
-    description: 'Question bank (multiple choice or numeric entry). Delete deactivates.',
-    fields: [
-      { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
-      { name: 'exam_id', label: 'Exam ID', type: 'number' },
-      { name: 'section_id', label: 'Section ID', type: 'number' },
-      { name: 'question_type', label: 'Type (multiple_choice / numeric_entry)', type: 'string' },
-      { name: 'question_text', label: 'Question Text', type: 'text', required: true },
-      { name: 'image_url', label: 'Image URL', type: 'string' },
-      {
-        name: 'answer_choices',
-        label: 'Answer Choices (JSON, e.g. {"A": "...", "B": "..."}; {} for numeric)',
-        type: 'json',
-      },
-      { name: 'correct_answer', label: 'Correct Answer (letter or number like 3/4)', type: 'string', required: true },
-      { name: 'accepted_answers', label: 'Other Accepted Answers (JSON list, numeric only)', type: 'json' },
-      { name: 'tags', label: 'Tags (JSON list of "category:name")', type: 'json' },
-      { name: 'explanation', label: 'Explanation', type: 'text' },
-      { name: 'difficulty', label: 'Difficulty (easy / medium / hard)', type: 'string' },
-      { name: 'is_active', label: 'Active', type: 'boolean' },
-    ],
-  },
-  {
     key: 'tests',
     label: 'Tests',
     apiPath: 'tests',
@@ -172,6 +153,7 @@ export const RESOURCES: ResourceDef[] = [
       { name: 'description', label: 'Description', type: 'text' },
       { name: 'time_limit_minutes', label: 'Time Limit (min, used when no timed sections)', type: 'number', required: true },
       { name: 'question_count', label: 'Question Count', type: 'number', required: true },
+      { name: 'break_pool_minutes', label: 'Shared Break Budget (min; USMLE 45; empty = per-section breaks)', type: 'number' },
       {
         name: 'scoring',
         label:
@@ -189,10 +171,11 @@ export const RESOURCES: ResourceDef[] = [
     fields: [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
       { name: 'test_id', label: 'Test ID', type: 'number', required: true },
-      { name: 'section_id', label: 'Section ID', type: 'number', required: true },
+      { name: 'section_id', label: 'Subject Section ID (empty = mixed)', type: 'number' },
       { name: 'section_order', label: 'Section Order', type: 'number', required: true },
       { name: 'name', label: 'Display Name (e.g. Block 1)', type: 'string' },
       { name: 'time_limit_minutes', label: 'Time Limit (min)', type: 'number' },
+      { name: 'break_after_minutes', label: 'Break After (min; 0 = none; ignored with shared budget)', type: 'number' },
       { name: 'question_count', label: 'Question Count', type: 'number', required: true },
     ],
   },
@@ -205,7 +188,7 @@ export const RESOURCES: ResourceDef[] = [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
       { name: 'test_id', label: 'Test ID', type: 'number', required: true },
       { name: 'question_id', label: 'Question ID', type: 'number', required: true },
-      { name: 'section_id', label: 'Section ID', type: 'number', required: true },
+      { name: 'section_id', label: 'Subject Section ID', type: 'number' },
       { name: 'test_section_id', label: 'Test Section ID (timed part)', type: 'number' },
       { name: 'question_order', label: 'Question Order', type: 'number', required: true },
       { name: 'section_question_order', label: 'Section Question Order', type: 'number', required: true },
