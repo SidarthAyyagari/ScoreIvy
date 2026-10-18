@@ -56,6 +56,36 @@ A student must never see a repeat question across the tests they buy, so the Tes
 - No real questions loaded.
 - No Stripe account set up.
 
+## Running locally
+
+`./start.sh` from the repo root (Docker Desktop must be running). Student site http://localhost:3000, admin http://localhost:3001, API docs http://localhost:8000/docs. With `SKIP_ADMIN_AUTH=true` in `backend/.env`, both login pages show **Continue without Google (dev)**. Without Stripe keys, **Buy** grants the pack for free.
+
+Checked against local Postgres on 2026-10-18: migrations 08–13 apply cleanly and the admin APIs work. **Known gap**: the old sample data (500 questions, 50 tests, 3 packages) has no exam assigned, so it doesn't appear under the USMLE or SAT tabs and the Test Builder can't use it. To click through, either enter questions for an exam in the Question Bank or add a demo seed per exam.
+
+## Production launch plan
+
+Target setup (chosen for simplicity; one platform, deploys from GitHub):
+
+| Piece | Host | Address |
+| --- | --- | --- |
+| Student site (`ui_user`) | Render web service | `scoreivy.com` |
+| Admin site (`ui_admin`) | Render web service | `admin.scoreivy.com` |
+| Backend (`backend`) | Render web service (Docker) | `api.scoreivy.com` |
+| Database | Render managed Postgres (paid plan for backups and point-in-time restore) | private |
+
+Pipeline: work on a branch, open a pull request, GitHub Actions runs backend pytest and `next build` for both apps, merge only when green (branch protection on `main`), Render auto-deploys `main` "after CI checks pass". Secrets live in Render environment variables, never in the repo. A staging copy can be added later.
+
+Steps:
+
+1. **CI**: GitHub Actions workflow plus branch protection.
+2. **Containerize and deploy**: backend Dockerfile, Render services and Postgres, production env vars (`ENV=production`, `SECRET_KEY`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`, `CORS_ORIGINS`, `FRONTEND_URL`, Stripe keys), uvicorn `--proxy-headers`.
+3. **Domain**: the owner's mom owns `scoreivy.com`. Needed: access to the registrar account (or she adds the DNS records). Add the records Render gives for the three addresses. Don't touch existing email (MX) records.
+4. **Google sign-in**: add the production addresses as authorized origins; publish the OAuth consent screen.
+5. **Stripe**: create the account (business and bank details), test end to end in test mode, then live keys and a webhook at `https://api.scoreivy.com/api/payments/webhook`. Locally, Stripe stays off and purchases are free.
+6. **Before opening to the public**: legal pages, trademark disclaimer, landing page with pricing, support email, Sentry and uptime monitoring, a tested database restore.
+
+Also needed for a public launch (beyond the code): original question content only (no copying from UWorld, NBME, or College Board material); terms that cover minors buying (many SAT students are under 18); sales tax on digital goods (Stripe Tax); account deletion for privacy laws; mobile layout; extended-time accommodations; a "report a problem with this question" button; product analytics.
+
 ## Next steps, in order
 
 1. Click through both exams end to end locally against Postgres (student and admin); fix what breaks.
@@ -107,6 +137,8 @@ Rules worth knowing:
 ## Session log
 
 Newest first. Add a line or two per working session.
+
+- **2026-10-18** — Verified the backend on local Postgres (migrations 08–13 apply; admin APIs work). Found the sample data has no exam. Wrote the production launch plan above (Render + GitHub Actions + Stripe). Owner is clicking through locally next.
 
 - **2026-10-18** — Question Bank editor, history and revert, archive vs. delete, CSV export; Test Builder with USMLE and SAT presets; real break rules; student break screen explains shared vs. scheduled breaks. Commit `76af38d`. Created this plan and `AGENTS.md`.
 - **2026-10-18** — Stripe Checkout for packs (commit `74142ce`).

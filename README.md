@@ -25,12 +25,7 @@ This will start:
 - 🎨 Student UI (Next.js) on `http://localhost:3000`
 - 🛠️ Admin UI (Next.js) on `http://localhost:3001`
 
-**Stop everything:**
-```bash
-./stop.sh
-```
-
-Or press `Ctrl+C` in the terminal where `start.sh` is running.
+**Stop everything:** press `Ctrl+C` in the terminal where `start.sh` is running. The database keeps running; stop it with `docker-compose down`.
 
 ## Setup Instructions
 
