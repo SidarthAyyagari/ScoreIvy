@@ -77,10 +77,12 @@ Target setup (chosen for simplicity; one platform, deploys from GitHub):
 
 Pipeline: work on a branch, open a pull request, GitHub Actions runs backend pytest and `next build` for both apps, merge only when green (branch protection on `main`), Render auto-deploys `main` "after CI checks pass". Secrets live in Render environment variables, never in the repo. A staging copy can be added later.
 
+The step-by-step runbook is [DEPLOY.md](DEPLOY.md). In the repo already: `.github/workflows/ci.yml` (backend tests on Python 3.8, `next build` for both sites, backend Docker image build), `backend/Dockerfile` (build from repo root; runs uvicorn with `--proxy-headers`), and `render.yaml` (Render Blueprint with all four pieces; deploys only after CI passes). The image was checked locally in production mode: it starts, hides `/docs`, blocks dev login, skips sample data, and refuses to start without Stripe keys. The CI workflow and Blueprint haven't run on GitHub or Render yet.
+
 Steps:
 
-1. **CI**: GitHub Actions workflow plus branch protection.
-2. **Containerize and deploy**: backend Dockerfile, Render services and Postgres, production env vars (`ENV=production`, `SECRET_KEY`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`, `CORS_ORIGINS`, `FRONTEND_URL`, Stripe keys), uvicorn `--proxy-headers`.
+1. **CI**: done in the repo; still to do: turn on branch protection after the first run.
+2. **Deploy**: create the Render Blueprint and enter the secret settings (see DEPLOY.md).
 3. **Domain**: the owner's mom owns `scoreivy.com`. Needed: access to the registrar account (or she adds the DNS records). Add the records Render gives for the three addresses. Don't touch existing email (MX) records.
 4. **Google sign-in**: add the production addresses as authorized origins; publish the OAuth consent screen.
 5. **Stripe**: create the account (business and bank details), test end to end in test mode, then live keys and a webhook at `https://api.scoreivy.com/api/payments/webhook`. Locally, Stripe stays off and purchases are free.
@@ -140,6 +142,8 @@ Rules worth knowing:
 ## Session log
 
 Newest first. Add a line or two per working session.
+
+- **2026-10-18** — Demo content seed; fixed id sequences and package test order. Added GitHub Actions CI, backend Dockerfile, Render Blueprint, and DEPLOY.md. Owner is clicking through locally with the demo data.
 
 - **2026-10-18** — Verified the backend on local Postgres (migrations 08–13 apply; admin APIs work). Found the sample data has no exam. Wrote the production launch plan above (Render + GitHub Actions + Stripe). Owner is clicking through locally next.
 

@@ -41,11 +41,13 @@
 - [ ] Create Stripe account; test end to end in test mode with `stripe listen`; then live keys + production webhook endpoint
 - [ ] Stripe Tax / receipts settings and statement descriptor
 - [ ] Alembic baseline migration; stop running SQL scripts on startup
-- [ ] Dockerfile for backend; deploy frontends + backend + managed Postgres (staging + production)
+- [x] Dockerfile for backend; Render Blueprint (`render.yaml`) and DEPLOY.md
+- [ ] Create the Render Blueprint and deploy (production; staging later)
+- [ ] Branch protection on `main` requiring the CI checks
 - [ ] Domains, HTTPS, Google OAuth origins, Stripe webhook URL per environment
 - [ ] Terms, privacy, refund policy pages
 - [ ] Sentry + uptime monitoring + DB backups
-- [ ] CI: pytest + `next build` for both apps
+- [x] CI: pytest + `next build` for both apps + backend image build (`.github/workflows/ci.yml`)
 
 ## P0 — Monday Alpha
 - [x] Admin-only access control
