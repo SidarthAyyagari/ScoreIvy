@@ -71,22 +71,20 @@
 - [ ] Better error handling
 - [ ] Loading states
 - [x] Search/pagination for admin questions
-- [ ] Seed demo data
+- [x] Seed demo data
 - [ ] Sentry/logging
 
 ## Backlog
 - [ ] Extend docstrings to frontend TypeScript (JSDoc on shared types and API helpers). All classes and methods should have some small doc explaining what it does. All directories and sub directories should have a small readme explaining what all is happening int it.
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
-- [ ] Document `ADMIN_EMAILS` env var in backend setup notes
+- [x] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
 - [ ] API tests for question create validation edge cases
 - [x] Admin layout hub page linking question list, create, and CSV upload
 - [ ] Wire admin nav link on dashboard when `is_admin` is available from auth
 - [x] Publish sample questions CSV template for admins
 - [x] API tests for CSV upload validation and import
-- [ ] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
-- [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
-- [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
+- [x] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
 
 - [ ] Pro subscription: in-depth analytics (topic breakdown, timing, score trend, weak-area drills) behind a paywall; packs keep basic grading + score report
 - [ ] Real USMLE lab values panel content (currently a placeholder) and text zoom
@@ -99,4 +97,3 @@
 ## P2 — Later
 - [ ] Image upload
 - [ ] Advanced analytics
-- [ ] Legal pages
