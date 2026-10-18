@@ -15,9 +15,41 @@ export interface ResourceDef {
   apiPath: string
   description: string
   fields: FieldDef[]
+  readOnlyResource?: boolean
 }
 
 export const RESOURCES: ResourceDef[] = [
+  {
+    key: 'exams',
+    label: 'Exams',
+    apiPath: 'exams',
+    description: 'Exams students can choose from (USMLE, SAT, ...). Delete deactivates.',
+    fields: [
+      { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'slug', label: 'Slug (lowercase, dashes)', type: 'string', required: true },
+      { name: 'name', label: 'Name', type: 'string', required: true },
+      { name: 'description', label: 'Description', type: 'text' },
+      {
+        name: 'tools',
+        label: 'Tools (JSON list: "lab_values", "calculator", "reference_sheet", "notes")',
+        type: 'json',
+      },
+      { name: 'display_order', label: 'Display Order', type: 'number' },
+      { name: 'is_active', label: 'Active', type: 'boolean' },
+    ],
+  },
+  {
+    key: 'tags',
+    label: 'Tags',
+    apiPath: 'tags',
+    description: 'Topic tags per exam (category + name, e.g. system / Cardiovascular)',
+    fields: [
+      { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'exam_id', label: 'Exam ID', type: 'number' },
+      { name: 'category', label: 'Category', type: 'string', required: true },
+      { name: 'name', label: 'Name', type: 'string', required: true },
+    ],
+  },
   {
     key: 'users',
     label: 'Users',
@@ -42,10 +74,12 @@ export const RESOURCES: ResourceDef[] = [
     description: 'Purchasable test bundles',
     fields: [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'exam_id', label: 'Exam ID', type: 'number' },
       { name: 'name', label: 'Name', type: 'string', required: true },
       { name: 'description', label: 'Description', type: 'text' },
       { name: 'test_count', label: 'Test Count', type: 'number', required: true },
       { name: 'price', label: 'Price', type: 'number', required: true },
+      { name: 'validity_days', label: 'Credits Valid (days)', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' },
     ],
   },
@@ -78,9 +112,10 @@ export const RESOURCES: ResourceDef[] = [
     key: 'sections',
     label: 'Sections',
     apiPath: 'sections',
-    description: 'Question categories (Math, Reading, etc.)',
+    description: 'Subject areas used for score breakdowns (Physiology, SAT Math, ...)',
     fields: [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'exam_id', label: 'Exam ID', type: 'number' },
       { name: 'name', label: 'Name', type: 'string', required: true },
       { name: 'description', label: 'Description', type: 'text' },
     ],
@@ -89,16 +124,24 @@ export const RESOURCES: ResourceDef[] = [
     key: 'questions',
     label: 'Questions',
     apiPath: 'questions',
-    description: 'MCQ question bank',
+    description: 'Question bank (multiple choice or numeric entry). Delete deactivates.',
     fields: [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'exam_id', label: 'Exam ID', type: 'number' },
       { name: 'section_id', label: 'Section ID', type: 'number' },
+      { name: 'question_type', label: 'Type (multiple_choice / numeric_entry)', type: 'string' },
       { name: 'question_text', label: 'Question Text', type: 'text', required: true },
       { name: 'image_url', label: 'Image URL', type: 'string' },
-      { name: 'answer_choices', label: 'Answer Choices (JSON)', type: 'json', required: true },
-      { name: 'correct_answer', label: 'Correct Answer', type: 'string', required: true },
+      {
+        name: 'answer_choices',
+        label: 'Answer Choices (JSON, e.g. {"A": "...", "B": "..."}; {} for numeric)',
+        type: 'json',
+      },
+      { name: 'correct_answer', label: 'Correct Answer (letter or number like 3/4)', type: 'string', required: true },
+      { name: 'accepted_answers', label: 'Other Accepted Answers (JSON list, numeric only)', type: 'json' },
+      { name: 'tags', label: 'Tags (JSON list of "category:name")', type: 'json' },
       { name: 'explanation', label: 'Explanation', type: 'text' },
-      { name: 'difficulty', label: 'Difficulty', type: 'string' },
+      { name: 'difficulty', label: 'Difficulty (easy / medium / hard)', type: 'string' },
       { name: 'is_active', label: 'Active', type: 'boolean' },
     ],
   },
@@ -109,10 +152,17 @@ export const RESOURCES: ResourceDef[] = [
     description: 'Practice exams',
     fields: [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'exam_id', label: 'Exam ID', type: 'number' },
       { name: 'name', label: 'Name', type: 'string', required: true },
       { name: 'description', label: 'Description', type: 'text' },
-      { name: 'time_limit_minutes', label: 'Time Limit (min)', type: 'number', required: true },
+      { name: 'time_limit_minutes', label: 'Time Limit (min, used when no timed sections)', type: 'number', required: true },
       { name: 'question_count', label: 'Question Count', type: 'number', required: true },
+      {
+        name: 'scoring',
+        label:
+          'Scaled Scoring (JSON raw-correct → scaled; keys under "sections" are Section IDs, e.g. {"sections": {"3": {"0": 200, "44": 800}}, "overall": {...}})',
+        type: 'json',
+      },
       { name: 'is_active', label: 'Active', type: 'boolean' },
     ],
   },
@@ -120,12 +170,14 @@ export const RESOURCES: ResourceDef[] = [
     key: 'test-sections',
     label: 'Test Sections',
     apiPath: 'test-sections',
-    description: 'Sections within a test',
+    description: 'Timed parts of a test (USMLE blocks, SAT modules), taken in order',
     fields: [
       { name: 'id', label: 'ID', type: 'number', readOnly: true, hideOnCreate: true },
       { name: 'test_id', label: 'Test ID', type: 'number', required: true },
       { name: 'section_id', label: 'Section ID', type: 'number', required: true },
       { name: 'section_order', label: 'Section Order', type: 'number', required: true },
+      { name: 'name', label: 'Display Name (e.g. Block 1)', type: 'string' },
+      { name: 'time_limit_minutes', label: 'Time Limit (min)', type: 'number' },
       { name: 'question_count', label: 'Question Count', type: 'number', required: true },
     ],
   },
@@ -139,6 +191,7 @@ export const RESOURCES: ResourceDef[] = [
       { name: 'test_id', label: 'Test ID', type: 'number', required: true },
       { name: 'question_id', label: 'Question ID', type: 'number', required: true },
       { name: 'section_id', label: 'Section ID', type: 'number', required: true },
+      { name: 'test_section_id', label: 'Test Section ID (timed part)', type: 'number' },
       { name: 'question_order', label: 'Question Order', type: 'number', required: true },
       { name: 'section_question_order', label: 'Section Question Order', type: 'number', required: true },
     ],
@@ -157,6 +210,23 @@ export const RESOURCES: ResourceDef[] = [
       { name: 'score', label: 'Score', type: 'number' },
       { name: 'correct_answers', label: 'Correct Answers', type: 'number' },
       { name: 'completed_at', label: 'Completed At', type: 'datetime' },
+      { name: 'scaled_score', label: 'Scaled Score', type: 'number', readOnly: true, hideOnCreate: true },
+      { name: 'section_scores', label: 'Section Scores', type: 'json', readOnly: true, hideOnCreate: true },
+    ],
+  },
+  {
+    key: 'attempt-sections',
+    label: 'Attempt Sections',
+    apiPath: 'attempt-sections',
+    description: 'Per-section timing for each attempt (read-only)',
+    readOnlyResource: true,
+    fields: [
+      { name: 'id', label: 'ID', type: 'number', readOnly: true },
+      { name: 'test_attempt_id', label: 'Attempt ID', type: 'number', readOnly: true },
+      { name: 'section_order', label: 'Order', type: 'number', readOnly: true },
+      { name: 'name', label: 'Name', type: 'string', readOnly: true },
+      { name: 'started_at', label: 'Started', type: 'datetime', readOnly: true },
+      { name: 'completed_at', label: 'Completed', type: 'datetime', readOnly: true },
     ],
   },
   {

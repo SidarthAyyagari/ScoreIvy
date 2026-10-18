@@ -47,10 +47,7 @@ async def create_section(
     """Create a new section"""
     logger.info(f"Creating section: {section.name}")
     try:
-        db_section = Section(
-            name=section.name,
-            description=section.description
-        )
+        db_section = Section(**section.model_dump())
         db.add(db_section)
         db.commit()
         db.refresh(db_section)
@@ -59,7 +56,7 @@ async def create_section(
     except Exception as e:
         logger.error(f"Error creating section: {str(e)}", exc_info=True)
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating section: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error creating section")
 
 
 @router.put("/{section_id}", response_model=SectionResponse)
@@ -77,10 +74,9 @@ async def update_section(
             logger.warning(f"Section {section_id} not found")
             raise HTTPException(status_code=404, detail="Section not found")
         
-        if section.name is not None:
-            db_section.name = section.name
-        if section.description is not None:
-            db_section.description = section.description
+        for key, value in section.model_dump(exclude_unset=True).items():
+            if value is not None:
+                setattr(db_section, key, value)
         
         db.commit()
         db.refresh(db_section)
@@ -91,7 +87,7 @@ async def update_section(
     except Exception as e:
         logger.error(f"Error updating section: {str(e)}", exc_info=True)
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating section: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error updating section")
 
 
 @router.delete("/{section_id}")
@@ -117,5 +113,5 @@ async def delete_section(
     except Exception as e:
         logger.error(f"Error deleting section: {str(e)}", exc_info=True)
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error deleting section: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error deleting section")
 

@@ -1,17 +1,14 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES, GOOGLE_CLIENT_IDS
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60  # 30 days
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class GoogleTokenError(Exception):
+    pass
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -34,3 +31,28 @@ def verify_token(token: str):
     except JWTError:
         return None
 
+
+def verify_google_credential(credential: str) -> dict:
+    """Verify a Google Sign-In ID token and return its claims.
+
+    Checks signature, expiry, issuer, and that the token was minted for one of
+    our OAuth client IDs. Raises GoogleTokenError on any failure.
+    """
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token
+
+    if not GOOGLE_CLIENT_IDS:
+        raise GoogleTokenError("Google sign-in is not configured")
+
+    try:
+        claims = id_token.verify_oauth2_token(credential, google_requests.Request())
+    except ValueError as exc:
+        raise GoogleTokenError("Invalid Google credential") from exc
+
+    if claims.get("aud") not in GOOGLE_CLIENT_IDS:
+        raise GoogleTokenError("Google credential was issued for a different app")
+    if claims.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise GoogleTokenError("Invalid Google credential issuer")
+    if not claims.get("email") or not claims.get("email_verified"):
+        raise GoogleTokenError("Google account email is not verified")
+    return claims

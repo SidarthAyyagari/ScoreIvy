@@ -6,12 +6,21 @@ import { useAuth } from '../contexts/AuthContext'
 import { apiJson } from '../utils/api'
 import styles from './page.module.css'
 
+interface Exam {
+  id: number
+  slug: string
+  name: string
+  description: string | null
+}
+
 interface Package {
   id: number
+  exam_id: number | null
   name: string
   description: string | null
   test_count: number
   price: number
+  validity_days: number | null
 }
 
 interface UserPackage {
@@ -20,12 +29,16 @@ interface UserPackage {
   tests_remaining: number
   purchased_at: string
   expires_at: string | null
+  is_expired: boolean
+  exam: { id: number; slug: string; name: string } | null
   package?: Package
 }
 
 export default function DashboardPage() {
   const { user, logout, isAuthenticated } = useAuth()
   const router = useRouter()
+  const [exams, setExams] = useState<Exam[]>([])
+  const [selectedExamId, setSelectedExamId] = useState<number | null>(null)
   const [availablePackages, setAvailablePackages] = useState<Package[]>([])
   const [userPackages, setUserPackages] = useState<UserPackage[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,13 +55,14 @@ export default function DashboardPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      
-      // Fetch available packages
-      const packages = await apiJson<Package[]>('/api/packages/')
+      const [examList, packages, userPkgs] = await Promise.all([
+        apiJson<Exam[]>('/api/exams/'),
+        apiJson<Package[]>('/api/packages/'),
+        apiJson<UserPackage[]>('/api/packages/user/purchased'),
+      ])
+      setExams(examList)
+      setSelectedExamId((current) => current ?? examList[0]?.id ?? null)
       setAvailablePackages(packages)
-      
-      // Fetch user packages (now includes package details)
-      const userPkgs = await apiJson<UserPackage[]>('/api/packages/user/purchased')
       setUserPackages(userPkgs)
     } catch (err) {
       console.error('Error fetching data:', err)
@@ -56,6 +70,10 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  const visiblePackages = selectedExamId === null
+    ? availablePackages
+    : availablePackages.filter((pkg) => pkg.exam_id === selectedExamId)
 
   const handlePurchase = async (packageId: number) => {
     try {
@@ -112,11 +130,18 @@ export default function DashboardPage() {
                 {userPackages.map((userPkg) => (
                   <div key={userPkg.id} className={styles.packageCard}>
                     <div className={styles.packageInfo}>
+                      {userPkg.exam && <span className={styles.examLabel}>{userPkg.exam.name}</span>}
                       <h3>{userPkg.package?.name || 'Package'}</h3>
                       <p>{userPkg.package?.description || 'Test package'}</p>
                       <div className={styles.packageStats}>
                         <span>Tests Remaining: {userPkg.tests_remaining}</span>
                         <span>Total Tests: {userPkg.package?.test_count || 0}</span>
+                        {userPkg.expires_at && (
+                          <span>
+                            {userPkg.is_expired ? 'Expired' : 'Expires'}:{' '}
+                            {new Date(userPkg.expires_at).toLocaleDateString()}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <button
@@ -134,13 +159,28 @@ export default function DashboardPage() {
           {/* Available Packages Panel */}
           <div className={styles.panel}>
             <h2 className={styles.panelTitle}>Available Packages</h2>
-            {availablePackages.length === 0 ? (
+            {exams.length > 1 && (
+              <div className={styles.examTabs} role="tablist">
+                {exams.map((exam) => (
+                  <button
+                    key={exam.id}
+                    role="tab"
+                    aria-selected={exam.id === selectedExamId}
+                    className={`${styles.examTab} ${exam.id === selectedExamId ? styles.examTabActive : ''}`}
+                    onClick={() => setSelectedExamId(exam.id)}
+                  >
+                    {exam.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {visiblePackages.length === 0 ? (
               <div className={styles.emptyState}>
                 <p>No packages available at the moment.</p>
               </div>
             ) : (
               <div className={styles.packageList}>
-                {availablePackages.map((pkg) => (
+                {visiblePackages.map((pkg) => (
                   <div key={pkg.id} className={styles.packageCard}>
                     <div className={styles.packageInfo}>
                       <h3>{pkg.name}</h3>
@@ -148,6 +188,7 @@ export default function DashboardPage() {
                       <div className={styles.packageStats}>
                         <span className={styles.price}>${pkg.price.toFixed(2)}</span>
                         <span>{pkg.test_count} Tests</span>
+                        {pkg.validity_days && <span>Valid {pkg.validity_days} days</span>}
                       </div>
                     </div>
                     <button

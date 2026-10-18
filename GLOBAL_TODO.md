@@ -8,6 +8,35 @@
 - Agents must add new discovered work under Backlog, not randomly implement it.
 - Human decides priority changes.
 
+## P0 — Launch: security hardening (Phase 1)
+- [x] Verify Google ID tokens server-side (no trusting client-sent email)
+- [x] Production config guard (`ENV=production`: required SECRET_KEY/GOOGLE_CLIENT_ID/CORS_ORIGINS, dev login + SKIP_ADMIN_AUTH + free purchase + sample data off, docs hidden)
+- [x] Remove student endpoints that edit/delete own packages, attempts, and scores
+- [x] Server-side exam sessions: start consumes a credit, server deadline, autosave, resume, server grading over all questions
+- [x] No retakes (one attempt per student per test)
+- [x] Package credit expiry (`packages.validity_days`, editable in admin)
+- [x] Generic 500 errors, login rate limit
+- [x] Backend tests for auth + exam/entitlement rules (`backend/tests`)
+
+## P0 — Launch: multi-exam (USMLE + SAT)
+- [x] Exams table; packages, tests, sections, questions scoped to an exam; dashboard exam picker
+- [x] Question topic tags (`category:name`, per exam) on model, CSV upload, admin UI
+- [x] Numeric-entry questions (SAT grid-in; fractions/decimals compared exactly), up to 10 choices (A–J)
+- [x] Timed test sections (USMLE blocks / SAT modules) with server-locked deadlines and breaks
+- [x] Section and scaled scores (`tests.scoring` lookup tables) on results
+- [x] Per-exam tools in exam UI (calculator via Desmos, reference sheet, notes, lab values placeholder)
+- [ ] Decide launch order and which USMLE steps; seed `exams` rows and first packs in production
+- [ ] Load real question content per exam
+
+## P0 — Launch: payments, hosting, content
+- [ ] Stripe Checkout for packs + signed webhook that grants the package (replace dev-only free purchase)
+- [ ] Alembic baseline migration; stop running SQL scripts on startup
+- [ ] Dockerfile for backend; deploy frontends + backend + managed Postgres (staging + production)
+- [ ] Domains, HTTPS, Google OAuth origins, Stripe webhook URL per environment
+- [ ] Terms, privacy, refund policy pages
+- [ ] Sentry + uptime monitoring + DB backups
+- [ ] CI: pytest + `next build` for both apps
+
 ## P0 — Monday Alpha
 - [x] Admin-only access control
 - [x] Backend question create API + validation
@@ -47,8 +76,17 @@
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
 - [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
 
+- [ ] Pro subscription: in-depth analytics (topic breakdown, timing, score trend, weak-area drills) behind a paywall; packs keep basic grading + score report
+- [ ] Real USMLE lab values panel content (currently a placeholder) and text zoom
+- [ ] Upgrade backend Python from 3.8 (EOL) to 3.11+
+- [ ] SAT adaptive module routing (module 2 difficulty based on module 1 score)
+- [ ] Admin UI page for CSV question upload (backend endpoint exists: `POST /api/questions/upload?exam_id=`)
+- [ ] Make `sections.name` unique per exam instead of globally
+- [ ] Admin form cannot clear a value back to empty (e.g. `validity_days` → no expiry); add an explicit "clear" option
+- [ ] Trademark disclaimer (USMLE/NBME, SAT/College Board are not affiliated) on site and legal pages
+- [ ] Verify migrations 08–10 against real Postgres and click through both exams in a browser
+
 ## P2 — Later
-- [ ] Stripe
 - [ ] Image upload
 - [ ] Advanced analytics
 - [ ] Legal pages

@@ -7,7 +7,12 @@ import logging
 
 from app.db.database import get_db
 from app.deps.admin import require_admin
+from app.services import questions as question_service
 from app.models.models import (
+    AttemptSection,
+    Exam,
+    QuestionTag,
+    Tag,
     User,
     Package,
     PackageTest,
@@ -27,6 +32,15 @@ from app.schemas.schemas import (
     QuestionUpdate,
 )
 from app.schemas.admin_schemas import (
+    AdminAttemptSectionResponse,
+    AdminExamCreate,
+    AdminExamResponse,
+    AdminExamUpdate,
+    AdminQuestionTagCreate,
+    AdminQuestionTagResponse,
+    AdminTagCreate,
+    AdminTagResponse,
+    AdminTagUpdate,
     AdminUserCreate,
     AdminUserUpdate,
     AdminUserResponse,
@@ -76,6 +90,132 @@ def _apply_updates(item: Any, data: dict) -> None:
     for key, value in data.items():
         if value is not None:
             setattr(item, key, value)
+
+
+# --- Exams ---
+
+
+@router.get("/exams", response_model=List[AdminExamResponse])
+def list_exams(skip: int = 0, limit: int = 200, db: Session = Depends(get_db)):
+    return db.query(Exam).order_by(Exam.display_order, Exam.id).offset(skip).limit(limit).all()
+
+
+@router.get("/exams/{exam_id}", response_model=AdminExamResponse)
+def get_exam(exam_id: int, db: Session = Depends(get_db)):
+    return _get_or_404(db, Exam, exam_id)
+
+
+@router.post("/exams", response_model=AdminExamResponse, status_code=201)
+def create_exam(payload: AdminExamCreate, db: Session = Depends(get_db)):
+    if db.query(Exam).filter(Exam.slug == payload.slug).first():
+        raise HTTPException(status_code=400, detail="An exam with this slug already exists")
+    item = Exam(**payload.model_dump())
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put("/exams/{exam_id}", response_model=AdminExamResponse)
+def update_exam(exam_id: int, payload: AdminExamUpdate, db: Session = Depends(get_db)):
+    item = _get_or_404(db, Exam, exam_id)
+    _apply_updates(item, payload.model_dump(exclude_unset=True))
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/exams/{exam_id}")
+def delete_exam(exam_id: int, db: Session = Depends(get_db)):
+    item = _get_or_404(db, Exam, exam_id)
+    item.is_active = False
+    db.commit()
+    return {"message": "Exam deactivated"}
+
+
+# --- Tags ---
+
+
+@router.get("/tags", response_model=List[AdminTagResponse])
+def list_tags(skip: int = 0, limit: int = 500, exam_id: Optional[int] = None, db: Session = Depends(get_db)):
+    query = db.query(Tag)
+    if exam_id is not None:
+        query = query.filter(Tag.exam_id == exam_id)
+    return query.order_by(Tag.category, Tag.name).offset(skip).limit(limit).all()
+
+
+@router.get("/tags/{tag_id}", response_model=AdminTagResponse)
+def get_tag(tag_id: int, db: Session = Depends(get_db)):
+    return _get_or_404(db, Tag, tag_id)
+
+
+@router.post("/tags", response_model=AdminTagResponse, status_code=201)
+def create_tag(payload: AdminTagCreate, db: Session = Depends(get_db)):
+    item = Tag(**payload.model_dump())
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.put("/tags/{tag_id}", response_model=AdminTagResponse)
+def update_tag(tag_id: int, payload: AdminTagUpdate, db: Session = Depends(get_db)):
+    item = _get_or_404(db, Tag, tag_id)
+    _apply_updates(item, payload.model_dump(exclude_unset=True))
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/tags/{tag_id}")
+def delete_tag(tag_id: int, db: Session = Depends(get_db)):
+    item = _get_or_404(db, Tag, tag_id)
+    db.delete(item)
+    db.commit()
+    return {"message": "Tag deleted"}
+
+
+@router.get("/question-tags", response_model=List[AdminQuestionTagResponse])
+def list_question_tags(
+    skip: int = 0, limit: int = 500, question_id: Optional[int] = None, db: Session = Depends(get_db)
+):
+    query = db.query(QuestionTag)
+    if question_id is not None:
+        query = query.filter(QuestionTag.question_id == question_id)
+    return query.offset(skip).limit(limit).all()
+
+
+@router.post("/question-tags", response_model=AdminQuestionTagResponse, status_code=201)
+def create_question_tag(payload: AdminQuestionTagCreate, db: Session = Depends(get_db)):
+    _get_or_404(db, Question, payload.question_id)
+    _get_or_404(db, Tag, payload.tag_id)
+    existing = db.get(QuestionTag, (payload.question_id, payload.tag_id))
+    if existing:
+        return existing
+    item = QuestionTag(**payload.model_dump())
+    db.add(item)
+    db.commit()
+    return item
+
+
+@router.delete("/question-tags/{question_id}/{tag_id}")
+def delete_question_tag(question_id: int, tag_id: int, db: Session = Depends(get_db)):
+    item = db.get(QuestionTag, (question_id, tag_id))
+    if not item:
+        raise HTTPException(status_code=404, detail="question_tags not found")
+    db.delete(item)
+    db.commit()
+    return {"message": "Question tag deleted"}
+
+
+@router.get("/attempt-sections", response_model=List[AdminAttemptSectionResponse])
+def list_attempt_sections(
+    skip: int = 0, limit: int = 200, test_attempt_id: Optional[int] = None, db: Session = Depends(get_db)
+):
+    query = db.query(AttemptSection)
+    if test_attempt_id is not None:
+        query = query.filter(AttemptSection.test_attempt_id == test_attempt_id)
+    return query.order_by(AttemptSection.test_attempt_id, AttemptSection.section_order).offset(skip).limit(limit).all()
 
 
 # --- Users ---
@@ -305,10 +445,11 @@ def get_question(question_id: int, db: Session = Depends(get_db)):
 
 @router.post("/questions", response_model=AdminQuestionResponse, status_code=201)
 def create_question(payload: QuestionCreate, db: Session = Depends(get_db)):
-    if payload.section_id is not None:
-        _get_or_404(db, Section, payload.section_id)
-    item = Question(**payload.model_dump())
-    db.add(item)
+    try:
+        item = question_service.create_question(db, payload)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
     db.refresh(item)
     return item
@@ -317,10 +458,11 @@ def create_question(payload: QuestionCreate, db: Session = Depends(get_db)):
 @router.put("/questions/{question_id}", response_model=AdminQuestionResponse)
 def update_question(question_id: int, payload: QuestionUpdate, db: Session = Depends(get_db)):
     item = _get_or_404(db, Question, question_id)
-    data = payload.model_dump(exclude_unset=True)
-    if "section_id" in data and data["section_id"] is not None:
-        _get_or_404(db, Section, data["section_id"])
-    _apply_updates(item, data)
+    try:
+        question_service.update_question(db, item, payload.model_dump(exclude_unset=True))
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
     db.refresh(item)
     return item

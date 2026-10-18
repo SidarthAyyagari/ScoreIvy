@@ -147,9 +147,11 @@ export function CrudResource({ resource }: { resource: ResourceDef }) {
           <h1 className={styles.title}>{resource.label}</h1>
           <p className={styles.subtitle}>{resource.description}</p>
         </div>
-        <button type="button" className={styles.primaryBtn} onClick={openCreate}>
-          + New {resource.label.replace(/s$/, '')}
-        </button>
+        {!resource.readOnlyResource && (
+          <button type="button" className={styles.primaryBtn} onClick={openCreate}>
+            + New {resource.label.replace(/s$/, '')}
+          </button>
+        )}
       </header>
 
       {error && !modalOpen && <div className={styles.errorBanner}>{error}</div>}
@@ -164,7 +166,7 @@ export function CrudResource({ resource }: { resource: ResourceDef }) {
                 {displayColumns.map((col) => (
                   <th key={col.name}>{col.label}</th>
                 ))}
-                <th>Actions</th>
+                {!resource.readOnlyResource && <th>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -182,18 +184,20 @@ export function CrudResource({ resource }: { resource: ResourceDef }) {
                         {formatCellValue(row[col.name])}
                       </td>
                     ))}
-                    <td className={styles.actions}>
-                      <button type="button" onClick={() => openEdit(row)}>
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.dangerBtn}
-                        onClick={() => handleDelete(row.id as number)}
-                      >
-                        Delete
-                      </button>
-                    </td>
+                    {!resource.readOnlyResource && (
+                      <td className={styles.actions}>
+                        <button type="button" onClick={() => openEdit(row)}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.dangerBtn}
+                          onClick={() => handleDelete(row.id as number)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

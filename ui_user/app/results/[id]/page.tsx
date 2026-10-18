@@ -8,20 +8,34 @@ import styles from './page.module.css'
 
 interface QuestionData {
   id: number
+  question_type: 'multiple_choice' | 'numeric_entry'
   question_text: string
   image_url: string | null
   answer_choices: { [key: string]: string }
   correct_answer: string
+  accepted_answers: string[] | null
   explanation: string | null
   selected_answer: string | null
   is_correct: boolean | null
   time_spent_seconds: number | null
 }
 
+interface SectionScore {
+  section_id: number
+  name: string
+  correct: number
+  total: number
+  scaled: number | null
+}
+
 interface AttemptData {
   id: number
   test_id: number
+  test_name: string
+  exam: { slug: string; name: string } | null
   score: number | null
+  scaled_score: number | null
+  section_scores: SectionScore[]
   total_questions: number
   correct_answers: number | null
   completed_at: string | null
@@ -114,6 +128,9 @@ export default function ResultsPage() {
     <div className={styles.container}>
       <div className={styles.resultsCard}>
         <h1 className={styles.title}>Test Results</h1>
+        <p className={styles.subtitle}>
+          {attempt.exam ? `${attempt.exam.name} · ` : ''}{attempt.test_name}
+        </p>
         
         <div className={styles.scoreSection}>
           <div className={styles.wheelContainer}>
@@ -154,7 +171,36 @@ export default function ResultsPage() {
           <div className={styles.scoreText}>
             {correctCount} out of {attempt.total_questions} correct
           </div>
+          {attempt.scaled_score !== null && (
+            <div className={styles.scaledScore}>Scaled score: {attempt.scaled_score}</div>
+          )}
         </div>
+
+        {attempt.section_scores.length > 0 && (
+          <div className={styles.sectionBreakdown}>
+            <h2 className={styles.questionsTitle}>Score by Section</h2>
+            <table className={styles.breakdownTable}>
+              <thead>
+                <tr>
+                  <th>Section</th>
+                  <th>Correct</th>
+                  <th>Percent</th>
+                  {attempt.section_scores.some((s) => s.scaled !== null) && <th>Scaled</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {attempt.section_scores.map((s) => (
+                  <tr key={s.section_id}>
+                    <td>{s.name}</td>
+                    <td>{s.correct} / {s.total}</td>
+                    <td>{s.total ? Math.round((s.correct / s.total) * 100) : 0}%</td>
+                    {attempt.section_scores.some((x) => x.scaled !== null) && <td>{s.scaled ?? '—'}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className={styles.questionsSection}>
           <h2 className={styles.questionsTitle}>Question Review</h2>
@@ -180,6 +226,18 @@ export default function ResultsPage() {
                   )}
                 </div>
                 <p className={styles.questionText}>{question.question_text}</p>
+                {question.question_type === 'numeric_entry' ? (
+                  <div className={styles.options}>
+                    <div className={`${styles.option} ${correct ? styles.correctSelected : styles.wrongAnswer}`}>
+                      Your answer: {selectedAnswer || '(no answer)'}
+                    </div>
+                    {!correct && (
+                      <div className={`${styles.option} ${styles.correctAnswer}`}>
+                        Correct answer: {[correctAnswer, ...(question.accepted_answers || [])].join(' or ')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
                 <div className={styles.options}>
                   {answerChoicesArray.map((option) => {
                     const isUserAnswer = selectedAnswer === option.choice
@@ -210,6 +268,7 @@ export default function ResultsPage() {
                     )
                   })}
                 </div>
+                )}
                 {!correct && question.explanation && (
                   <div className={styles.explanation}>
                     <strong>Explanation:</strong>

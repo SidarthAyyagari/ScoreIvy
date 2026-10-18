@@ -1,29 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 import logging
 import os
 from app.db.database import get_db
 from app.models.models import User
 from app.schemas.schemas import UserResponse
-from app.auth import create_access_token
+from app.auth import create_access_token, verify_token, verify_google_credential, GoogleTokenError
+from app.config import SKIP_ADMIN_AUTH
+from app.limiter import limiter
 
-# Set up logging
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 
 router = APIRouter()
 
 
 def is_skip_admin_auth_enabled() -> bool:
-    """True when SKIP_ADMIN_AUTH is set (local dev only)."""
-    skip = os.getenv("SKIP_ADMIN_AUTH", "").strip().lower()
-    return skip in ("1", "true", "yes")
+    """True when SKIP_ADMIN_AUTH is set outside production (local dev only)."""
+    return SKIP_ADMIN_AUTH
 
 
 def resolve_is_admin(email: str) -> bool:
@@ -65,71 +62,53 @@ def _login_response(user: User) -> dict:
 
 
 class OAuthLoginRequest(BaseModel):
-    email: str
-    name: Optional[str] = None
-    picture: Optional[str] = None
-    oauth_provider: str = "google"
-    oauth_id: Optional[str] = None
+    """Google Sign-In ID token (the ``credential`` field from Google's callback)."""
+
+    credential: str = Field(..., min_length=1)
 
 
 @router.post("/oauth-login")
+@limiter.limit("20/minute")
 async def oauth_login(
-    request: OAuthLoginRequest,
+    request: Request,
+    payload: OAuthLoginRequest,
     db: Session = Depends(get_db)
 ):
-    """Create or update user from OAuth login"""
+    """Verify a Google ID token server-side, then create or update the user."""
     try:
-        logger.info(f"OAuth login attempt for email: {request.email}, provider: {request.oauth_provider}")
-        
-        # Find or create user
-        user = db.query(User).filter(User.email == request.email).first()
-        
-        if not user:
-            logger.info(f"Creating new user for email: {request.email}")
-            # Create new user
-            user = User(
-                email=request.email,
-                name=request.name,
-                picture=request.picture,
-                oauth_provider=request.oauth_provider,
-                oauth_id=request.oauth_id,
-                last_login_at=datetime.now()
-            )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-            logger.info(f"Successfully created user with ID: {user.id}")
-        else:
-            logger.info(f"Updating existing user with ID: {user.id}")
-            # Update existing user with latest OAuth info
-            if request.name:
-                user.name = request.name
-            if request.picture:
-                user.picture = request.picture
-            if request.oauth_id:
-                user.oauth_id = request.oauth_id
-            user.oauth_provider = request.oauth_provider
-            user.last_login_at = datetime.now()
-            db.commit()
-            db.refresh(user)
-            logger.info(f"Successfully updated user with ID: {user.id}")
+        claims = verify_google_credential(payload.credential)
+    except GoogleTokenError as exc:
+        logger.warning("Rejected Google sign-in: %s", exc)
+        raise HTTPException(status_code=401, detail=str(exc))
 
-        sync_user_admin_flag(user, db)
-        logger.info(f"Successfully generated access token for user ID: {user.id}")
-        return _login_response(user)
-    except Exception as e:
-        logger.error(f"Error in oauth_login: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    email = claims["email"].lower()
+    google_sub = claims["sub"]
+
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        user = User(email=email)
+        db.add(user)
+        logger.info("Creating new user for Google sign-in")
+    elif not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled")
+
+    user.name = claims.get("name") or user.name
+    user.picture = claims.get("picture") or user.picture
+    user.oauth_provider = "google"
+    user.oauth_id = google_sub
+    user.last_login_at = datetime.now()
+    db.commit()
+    db.refresh(user)
+
+    sync_user_admin_flag(user, db)
+    return _login_response(user)
 
 
 @router.post("/dev-login")
 async def dev_login(db: Session = Depends(get_db)):
-    """Passwordless dev login (no Google). Only when SKIP_ADMIN_AUTH=true."""
+    """Passwordless dev login (no Google). Only when SKIP_ADMIN_AUTH=true outside production."""
     if not is_skip_admin_auth_enabled():
-        raise HTTPException(
-            status_code=403,
-            detail="Dev login is disabled. Set SKIP_ADMIN_AUTH=true in backend/.env (local dev only).",
-        )
+        raise HTTPException(status_code=403, detail="Dev login is disabled")
 
     email = dev_login_email()
     logger.warning("Dev login used for %s — disable SKIP_ADMIN_AUTH before production", email)
@@ -160,27 +139,18 @@ def get_current_user(
     db: Session = Depends(get_db)
 ):
     """Get current user from JWT token"""
-    if not authorization:
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    try:
-        token = authorization.replace("Bearer ", "")
-        from app.auth import verify_token
-        payload = verify_token(token)
-        if payload is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        
-        user = db.query(User).filter(User.id == int(user_id)).first()
-        if user is None:
-            raise HTTPException(status_code=401, detail="User not found")
-        
-        return user
-    except Exception as e:
+
+    payload = verify_token(authorization[len("Bearer "):])
+    user_id = payload.get("sub") if payload else None
+    if user_id is None or not str(user_id).isdigit():
         raise HTTPException(status_code=401, detail="Invalid authentication")
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=401, detail="Invalid authentication")
+    return user
 
 
 def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
@@ -196,4 +166,3 @@ def get_current_admin(current_user: User = Depends(get_current_user)) -> User:
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return current_user
-

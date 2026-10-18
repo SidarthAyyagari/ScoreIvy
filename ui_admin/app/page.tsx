@@ -82,26 +82,9 @@ export default function LoginPage() {
         return
       }
 
-      const base64Url = credentialResponse.credential.split('.')[1]
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      )
-
-      const userInfo = JSON.parse(jsonPayload)
-
       const response = await apiJson<LoginResponse>('/api/auth/oauth-login', {
         method: 'POST',
-        body: JSON.stringify({
-          email: userInfo.email,
-          name: userInfo.name,
-          picture: userInfo.picture,
-          oauth_provider: 'google',
-          oauth_id: userInfo.sub,
-        }),
+        body: JSON.stringify({ credential: credentialResponse.credential }),
       })
 
       finishLogin(response)

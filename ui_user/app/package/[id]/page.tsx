@@ -26,6 +26,8 @@ interface AvailableTest {
   description: string | null
   time_limit_minutes: number
   question_count: number
+  in_progress_attempt_id: number | null
+  section_count: number
 }
 
 export default function PackageDetailPage() {
@@ -139,14 +141,22 @@ export default function PackageDetailPage() {
                       <p>{test.description || 'Test description'}</p>
                       <div className={styles.attemptStats}>
                         <span>{test.question_count} questions</span>
+                        {test.section_count > 1 && <span>{test.section_count} timed sections</span>}
                         <span>Time limit: {test.time_limit_minutes} minutes</span>
                       </div>
                     </div>
                     <button
-                      onClick={() => handleStartTest(test.id)}
+                      onClick={() => {
+                        if (
+                          test.in_progress_attempt_id ||
+                          confirm('Starting this test uses 1 credit and starts the timer. Each test can only be taken once. Continue?')
+                        ) {
+                          handleStartTest(test.id)
+                        }
+                      }}
                       className={styles.startButton}
                     >
-                      Start Test
+                      {test.in_progress_attempt_id ? 'Resume Test' : 'Start Test'}
                     </button>
                   </div>
                 ))}

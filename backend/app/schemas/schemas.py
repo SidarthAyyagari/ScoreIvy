@@ -2,9 +2,10 @@ from pydantic import BaseModel, EmailStr, Field, field_validator, model_validato
 from typing import Optional, List, Dict
 from datetime import datetime
 from app.schemas.question_validators import (
-    validate_answer_choices,
-    validate_correct_answer,
+    parse_tag,
     validate_difficulty,
+    validate_question_content,
+    validate_question_type,
 )
 
 
@@ -21,13 +22,17 @@ class QuestionCreate(BaseModel):
     difficulty before the route handler persists to the database.
     """
 
+    exam_id: Optional[int] = Field(default=None, gt=0)
     section_id: Optional[int] = Field(default=None, gt=0)
+    question_type: str = "multiple_choice"
     question_text: str = Field(..., min_length=1)
     image_url: Optional[str] = None
-    answer_choices: Dict[str, str]  # {"A": "choice text", "B": "choice text", ...}
+    answer_choices: Dict[str, str] = {}  # {"A": "choice text", ...}; empty for numeric_entry
     correct_answer: str = Field(..., min_length=1)
+    accepted_answers: Optional[List[str]] = None  # numeric_entry alternatives, e.g. [".75"]
     explanation: Optional[str] = None
     difficulty: str = "medium"
+    tags: List[str] = []  # "category:name", e.g. "system:Cardiovascular"
 
     @field_validator("question_text")
     @classmethod
@@ -45,15 +50,20 @@ class QuestionCreate(BaseModel):
         stripped = value.strip()
         return stripped or None
 
-    @field_validator("answer_choices")
+    @field_validator("question_type")
     @classmethod
-    def validate_answer_choices_field(cls, value: Dict[str, str]) -> Dict[str, str]:
-        return validate_answer_choices(value)
+    def validate_question_type_field(cls, value: str) -> str:
+        return validate_question_type(value)
 
     @field_validator("correct_answer")
     @classmethod
     def normalize_correct_answer(cls, value: str) -> str:
         return value.strip().upper()
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: List[str]) -> List[str]:
+        return [parse_tag(tag) for tag in value if tag and tag.strip()]
 
     @field_validator("difficulty")
     @classmethod
@@ -69,18 +79,27 @@ class QuestionCreate(BaseModel):
         return stripped or None
 
     @model_validator(mode="after")
-    def validate_correct_answer_in_choices(self) -> "QuestionCreate":
-        self.correct_answer = validate_correct_answer(self.correct_answer, self.answer_choices)
+    def validate_answers_for_type(self) -> "QuestionCreate":
+        self.answer_choices, self.correct_answer, self.accepted_answers = validate_question_content(
+            self.question_type, self.answer_choices, self.correct_answer, self.accepted_answers
+        )
         return self
+
+    def column_values(self) -> dict:
+        """Fields that map directly onto ``Question`` columns (tags are stored separately)."""
+        return self.model_dump(exclude={"tags"})
 
 
 class QuestionResponse(BaseModel):
     id: int
+    exam_id: Optional[int] = None
     section_id: Optional[int]
+    question_type: str = "multiple_choice"
     question_text: str
     image_url: Optional[str]
     answer_choices: Dict[str, str]
     correct_answer: str
+    accepted_answers: Optional[List[str]] = None
     explanation: Optional[str]
     difficulty: str
     created_at: datetime
@@ -115,15 +134,9 @@ class CsvUploadSuccessResponse(BaseModel):
 
 
 # Test Schemas
-class TestCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    time_limit_minutes: int
-    question_ids: List[int]  # List of question IDs to include in the test
-
-
 class TestResponse(BaseModel):
     id: int
+    exam_id: Optional[int] = None
     name: str
     description: Optional[str]
     time_limit_minutes: int
@@ -134,38 +147,22 @@ class TestResponse(BaseModel):
         from_attributes = True
 
 
-class TestQuestionResponse(BaseModel):
-    id: int
-    question_text: str
-    image_url: Optional[str]
-    answer_choices: Dict[str, str]
-    question_order: int
-
-    class Config:
-        from_attributes = True
-
-
-class TestDetailResponse(BaseModel):
-    id: int
-    name: str
-    description: Optional[str]
-    time_limit_minutes: int
-    questions: List[TestQuestionResponse]
-
-    class Config:
-        from_attributes = True
+class AvailableTestResponse(TestResponse):
+    in_progress_attempt_id: Optional[int] = None
+    section_count: int = 1
 
 
 # Test Attempt Schemas
 class QuestionAttemptCreate(BaseModel):
     question_id: int
-    selected_answer: Optional[str]
-    time_spent_seconds: Optional[int] = None
+    selected_answer: Optional[str] = Field(default=None, max_length=16)
+    time_spent_seconds: Optional[int] = Field(default=None, ge=0, le=24 * 60 * 60)
 
 
-class TestAttemptCreate(BaseModel):
-    test_id: int
-    question_attempts: List[QuestionAttemptCreate]
+class SectionSubmit(BaseModel):
+    """Final answers for the active section (``POST /api/tests/attempts/{id}/sections/{order}/submit``)."""
+
+    question_attempts: List[QuestionAttemptCreate] = []
 
 
 class TestAttemptResponse(BaseModel):
@@ -176,6 +173,8 @@ class TestAttemptResponse(BaseModel):
     score: Optional[float]
     total_questions: int
     correct_answers: Optional[int]
+    scaled_score: Optional[int] = None
+    section_scores: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True
@@ -202,12 +201,26 @@ class UserResponse(BaseModel):
 
 
 # Package Schemas
+class ExamResponse(BaseModel):
+    id: int
+    slug: str
+    name: str
+    description: Optional[str]
+    tools: List[str] = []
+    display_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 class PackageResponse(BaseModel):
     id: int
+    exam_id: Optional[int] = None
     name: str
     description: Optional[str]
     test_count: int
     price: float
+    validity_days: Optional[int] = None
     is_active: bool
 
     class Config:
@@ -227,34 +240,41 @@ class UserPackageResponse(BaseModel):
 
 # Package Schemas
 class PackageCreate(BaseModel):
+    exam_id: Optional[int] = None
     name: str
     description: Optional[str] = None
-    test_count: int
-    price: float
+    test_count: int = Field(..., gt=0)
+    price: float = Field(..., ge=0)
+    validity_days: Optional[int] = Field(default=180, gt=0)  # None = credits never expire
     is_active: bool = True
 
 
 class PackageUpdate(BaseModel):
+    exam_id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
-    test_count: Optional[int] = None
-    price: Optional[float] = None
+    test_count: Optional[int] = Field(default=None, gt=0)
+    price: Optional[float] = Field(default=None, ge=0)
+    validity_days: Optional[int] = Field(default=None, gt=0)
     is_active: Optional[bool] = None
 
 
 # Section Schemas
 class SectionCreate(BaseModel):
+    exam_id: Optional[int] = None
     name: str
     description: Optional[str] = None
 
 
 class SectionUpdate(BaseModel):
+    exam_id: Optional[int] = None
     name: Optional[str] = None
     description: Optional[str] = None
 
 
 class SectionResponse(BaseModel):
     id: int
+    exam_id: Optional[int] = None
     name: str
     description: Optional[str]
 
@@ -264,43 +284,18 @@ class SectionResponse(BaseModel):
 
 # Question Update Schema
 class QuestionUpdate(BaseModel):
+    exam_id: Optional[int] = None
     section_id: Optional[int] = None
+    question_type: Optional[str] = None
     question_text: Optional[str] = None
     image_url: Optional[str] = None
     answer_choices: Optional[Dict[str, str]] = None
     correct_answer: Optional[str] = None
+    accepted_answers: Optional[List[str]] = None
     explanation: Optional[str] = None
     difficulty: Optional[str] = None
     is_active: Optional[bool] = None
-
-
-# Test Update Schema
-class TestUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    time_limit_minutes: Optional[int] = None
-    is_active: Optional[bool] = None
-    question_ids: Optional[List[int]] = None  # If provided, will update test questions
-
-
-# UserPackage Update Schema
-class UserPackageUpdate(BaseModel):
-    tests_remaining: Optional[int] = None
-    expires_at: Optional[datetime] = None
-
-
-# TestAttempt Update Schema
-class TestAttemptUpdate(BaseModel):
-    completed_at: Optional[datetime] = None
-    score: Optional[float] = None
-    correct_answers: Optional[int] = None
-
-
-# QuestionAttempt Update Schema
-class QuestionAttemptUpdate(BaseModel):
-    selected_answer: Optional[str] = None
-    is_correct: Optional[bool] = None
-    time_spent_seconds: Optional[int] = None
+    tags: Optional[List[str]] = None  # Replaces all tags when provided
 
 
 class QuestionAttemptResponse(BaseModel):

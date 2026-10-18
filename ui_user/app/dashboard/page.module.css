@@ -33,6 +33,39 @@
   font-size: 1rem;
 }
 
+.examTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.examTab {
+  padding: 8px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 999px;
+  background: white;
+  color: #555;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.examTabActive {
+  border-color: #667eea;
+  background: #667eea;
+  color: white;
+}
+
+.examLabel {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #667eea;
+  margin-bottom: 4px;
+}
+
 .logoutButton {
   padding: 10px 20px;
   background: transparent;

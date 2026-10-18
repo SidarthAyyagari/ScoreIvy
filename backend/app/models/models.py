@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Float, Boolean, JSON, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -24,20 +24,37 @@ class User(Base):
     test_attempts = relationship("TestAttempt", back_populates="user")
 
 
+class Exam(Base):
+    """A standardized exam the site offers practice for (e.g. USMLE Step 1, SAT)."""
+    __tablename__ = "exams"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, nullable=False)  # URL-safe id, e.g. "usmle-step-1", "sat"
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    tools = Column(JSON, nullable=False, default=list)  # Exam UI tools, e.g. ["lab_values", "calculator", "reference_sheet"]
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Package(Base):
     __tablename__ = "packages"
 
     id = Column(Integer, primary_key=True, index=True)
+    exam_id = Column(Integer, ForeignKey("exams.id"), nullable=True)
     name = Column(String, nullable=False)
     description = Column(Text)
     test_count = Column(Integer, nullable=False)  # Number of tests included
     price = Column(Float, nullable=False)
+    validity_days = Column(Integer, nullable=True, default=180)  # Days credits last after purchase; NULL = never expire
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user_packages = relationship("UserPackage", back_populates="package")
     package_tests = relationship("PackageTest", back_populates="package")
+    exam = relationship("Exam")
 
 
 class PackageTest(Base):
@@ -74,6 +91,7 @@ class Section(Base):
     __tablename__ = "sections"
 
     id = Column(Integer, primary_key=True, index=True)
+    exam_id = Column(Integer, ForeignKey("exams.id"), nullable=True)
     name = Column(String, nullable=False)
     description = Column(Text)
 
@@ -85,11 +103,14 @@ class Question(Base):
     __tablename__ = "questions"
 
     id = Column(Integer, primary_key=True, index=True)
+    exam_id = Column(Integer, ForeignKey("exams.id"), nullable=True)
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=True)
+    question_type = Column(String, nullable=False, default="multiple_choice")  # multiple_choice | numeric_entry
     question_text = Column(Text, nullable=False)
     image_url = Column(String, nullable=True)  # URL to question image
-    answer_choices = Column(JSON, nullable=False)  # {"A": "choice text", "B": "choice text", ...}
-    correct_answer = Column(String, nullable=False)  # e.g., "A", "B", "C", "D"
+    answer_choices = Column(JSON, nullable=False)  # {"A": "choice text", ...}; {} for numeric_entry
+    correct_answer = Column(String, nullable=False)  # Choice key ("A") or numeric answer ("3/4")
+    accepted_answers = Column(JSON, nullable=True)  # Extra accepted numeric_entry answers, e.g. [".75", ".7500"]
     explanation = Column(Text, nullable=True)
     difficulty = Column(String, default="medium")  # easy, medium, hard
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -98,16 +119,38 @@ class Question(Base):
     # Relationships
     section = relationship("Section", back_populates="questions")
     question_attempts = relationship("QuestionAttempt", back_populates="question")
+    tags = relationship("Tag", secondary="question_tags")
+
+
+class Tag(Base):
+    """Topic tag scoped to an exam, e.g. (system, Cardiovascular) or (domain, Algebra)."""
+    __tablename__ = "tags"
+    __table_args__ = (UniqueConstraint("exam_id", "category", "name"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    exam_id = Column(Integer, ForeignKey("exams.id", ondelete="CASCADE"), nullable=True)
+    category = Column(String, nullable=False)  # e.g. "system", "discipline", "domain", "skill"
+    name = Column(String, nullable=False)
+
+
+class QuestionTag(Base):
+    __tablename__ = "question_tags"
+
+    question_id = Column(Integer, ForeignKey("questions.id", ondelete="CASCADE"), primary_key=True)
+    tag_id = Column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
 
 
 class Test(Base):
     __tablename__ = "tests"
 
     id = Column(Integer, primary_key=True, index=True)
+    exam_id = Column(Integer, ForeignKey("exams.id"), nullable=True)
     name = Column(String, nullable=False)
     description = Column(Text)
-    time_limit_minutes = Column(Integer, nullable=False)  # Total time limit for the test
+    time_limit_minutes = Column(Integer, nullable=False)  # Total time; used for sections without their own limit
     question_count = Column(Integer, nullable=False)  # Number of questions in the test
+    # Optional raw→scaled conversion: {"overall": {"0": 1, ...}} or {"sections": {"<section_id>": {"0": 200, ...}}}
+    scoring = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
 
@@ -127,6 +170,8 @@ class TestSection(Base):
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=False)
     section_order = Column(Integer, nullable=False)  # Order of section in the test (1, 2, 3)
     question_count = Column(Integer, nullable=False)  # Number of questions in this section for this test
+    name = Column(String, nullable=True)  # Display name, e.g. "Block 1" or "Math — Module 2"
+    time_limit_minutes = Column(Integer, nullable=True)  # Separately timed section; NULL = share of test time
 
     # Relationships
     test = relationship("Test", back_populates="test_sections")
@@ -141,6 +186,7 @@ class TestQuestion(Base):
     test_id = Column(Integer, ForeignKey("tests.id", ondelete="CASCADE"), nullable=False)
     question_id = Column(Integer, ForeignKey("questions.id"), nullable=False)
     section_id = Column(Integer, ForeignKey("sections.id"), nullable=False)
+    test_section_id = Column(Integer, ForeignKey("test_sections.id", ondelete="SET NULL"), nullable=True)  # Timed block/module
     question_order = Column(Integer, nullable=False)  # Order of question in the test
     section_question_order = Column(Integer, nullable=False)  # Order within the section
 
@@ -158,16 +204,41 @@ class TestAttempt(Base):
     test_id = Column(Integer, ForeignKey("tests.id"), nullable=False)
     user_package_id = Column(Integer, ForeignKey("user_packages.id"), nullable=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now())
+    deadline_at = Column(DateTime(timezone=True), nullable=True)  # Server-enforced end of the time limit
     completed_at = Column(DateTime(timezone=True), nullable=True)
     score = Column(Float, nullable=True)  # Percentage score
     total_questions = Column(Integer, nullable=False)
     correct_answers = Column(Integer, nullable=True)
+    scaled_score = Column(Integer, nullable=True)  # From Test.scoring when configured
+    section_scores = Column(JSON, nullable=True)  # [{"section_id", "name", "correct", "total", "scaled"}]
     
     # Relationships
     user = relationship("User", back_populates="test_attempts")
     test = relationship("Test", back_populates="test_attempts")
     user_package = relationship("UserPackage", back_populates="test_attempts")
     question_attempts = relationship("QuestionAttempt", back_populates="test_attempt", cascade="all, delete-orphan")
+    sections = relationship(
+        "AttemptSection", back_populates="test_attempt",
+        cascade="all, delete-orphan", order_by="AttemptSection.section_order",
+    )
+
+
+class AttemptSection(Base):
+    """Per-attempt state of one timed section (block/module). Snapshot of name and time limit."""
+    __tablename__ = "attempt_sections"
+    __table_args__ = (UniqueConstraint("test_attempt_id", "section_order"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    test_attempt_id = Column(Integer, ForeignKey("test_attempts.id", ondelete="CASCADE"), nullable=False)
+    test_section_id = Column(Integer, ForeignKey("test_sections.id", ondelete="SET NULL"), nullable=True)
+    section_order = Column(Integer, nullable=False)
+    name = Column(String, nullable=True)
+    time_limit_minutes = Column(Integer, nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    deadline_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    test_attempt = relationship("TestAttempt", back_populates="sections")
 
 
 class QuestionAttempt(Base):

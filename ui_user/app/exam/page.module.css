@@ -439,6 +439,78 @@
   cursor: not-allowed;
 }
 
+.centerCard {
+  max-width: 640px;
+  margin: 80px auto;
+  padding: 32px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  line-height: 1.6;
+  color: #333;
+}
+
+.centerCard h2 {
+  margin-top: 0;
+}
+
+.sectionList {
+  padding-left: 20px;
+  margin: 16px 0;
+}
+
+.sectionDone {
+  color: #2e7d32;
+}
+
+.breakTimer {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.questionImage {
+  max-width: 100%;
+  margin-bottom: 20px;
+}
+
+.numericEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 30px;
+  max-width: 260px;
+}
+
+.numericInput {
+  font-size: 1.2rem;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.numericInput:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.numericHint {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+}
+
+.referenceList {
+  padding-left: 18px;
+  line-height: 1.8;
+  font-size: 0.95rem;
+}
+
+.notesArea {
+  width: 100%;
+  min-height: 300px;
+  font: inherit;
+  padding: 8px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .topNavBar {

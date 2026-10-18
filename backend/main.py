@@ -1,9 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 import logging
 import os
 from sqlalchemy import text
-from app.routers import questions, tests, users, packages, auth, test_results, sections, admin
+from app.config import CORS_ORIGINS, IS_PRODUCTION, LOAD_SAMPLE_DATA, validate_settings
+from app.limiter import limiter
+from app.routers import questions, tests, users, packages, auth, test_results, sections, admin, exams
+from app.routers.auth import is_skip_admin_auth_enabled
 from app.db.database import engine, SessionLocal
 
 # Configure logging
@@ -13,7 +19,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="ScoreIvy API", version="1.0.0")
+validate_settings()
+
+app = FastAPI(
+    title="ScoreIvy API",
+    version="1.0.0",
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
+)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def check_database_connection():
     """Check database connection health"""
@@ -94,11 +110,13 @@ def run_initialization_script():
                 else:
                     logger.warning(f"⚠️  Schema script not found at {schema_path}")
             
-            # Run sample data script (always try, uses ON CONFLICT DO NOTHING)
-            logger.info("Loading sample data...")
+            # Run sample data script (uses ON CONFLICT DO NOTHING)
             sample_data_path = os.path.join(base_path, "database", "02_sample_data.sql")
             
-            if os.path.exists(sample_data_path):
+            if not LOAD_SAMPLE_DATA:
+                logger.info("Skipping sample data (LOAD_SAMPLE_DATA disabled)")
+            elif os.path.exists(sample_data_path):
+                logger.info("Loading sample data...")
                 with open(sample_data_path, 'r') as f:
                     sample_script = f.read()
                 
@@ -150,6 +168,7 @@ def run_initialization_script():
                     line = line.strip()
                     if line:
                         cleaned_lines.append(line)
+                full_script = ' '.join(cleaned_lines)
                 
                 # For migration script, execute the whole script at once for DO $$ blocks
                 # PostgreSQL handles DO $$ blocks better when executed as single statement
@@ -183,25 +202,33 @@ def run_initialization_script():
                 db.commit()
                 logger.info("✅ Database migration completed")
 
-            admin_migration_path = os.path.join(base_path, "database", "08_add_user_is_admin.sql")
-            if os.path.exists(admin_migration_path):
-                with open(admin_migration_path, 'r') as f:
-                    admin_migration_script = f.read()
+            for migration_file in (
+                "08_add_user_is_admin.sql",
+                "09_package_expiry_and_exam_deadlines.sql",
+                "10_multi_exam.sql",
+            ):
+                migration_file_path = os.path.join(base_path, "database", migration_file)
+                if not os.path.exists(migration_file_path):
+                    continue
+                with open(migration_file_path, 'r') as f:
+                    migration_sql = f.read()
                 try:
-                    db.execute(text(admin_migration_script))
+                    db.execute(text(migration_sql))
                     db.commit()
-                    logger.info("✅ Admin column migration completed")
+                    logger.info(f"✅ Migration {migration_file} completed")
                 except Exception as e:
                     error_msg = str(e).lower()
                     if "already exists" not in error_msg:
-                        logger.warning(f"Admin migration warning: {str(e)}")
+                        logger.warning(f"Migration {migration_file} warning: {str(e)}")
                     db.rollback()
             
             # Finally, load comprehensive data
-            logger.info("Loading comprehensive test data...")
             comprehensive_path = os.path.join(base_path, "database", "05_comprehensive_data.sql")
             
-            if os.path.exists(comprehensive_path):
+            if not LOAD_SAMPLE_DATA:
+                logger.info("Skipping comprehensive sample data (LOAD_SAMPLE_DATA disabled)")
+            elif os.path.exists(comprehensive_path):
+                logger.info("Loading comprehensive test data...")
                 with open(comprehensive_path, 'r') as f:
                     comprehensive_script = f.read()
                 
@@ -296,19 +323,15 @@ async def startup_event():
 async def shutdown_event():
     logger.info("ScoreIvy API shutting down...")
 
-# CORS: localhost always; private LAN IPs when SKIP_ADMIN_AUTH (dev / no Google OAuth on LAN)
-_cors_origins = [
-    "http://localhost:3000",  # ui_user
-    "http://localhost:3001",  # ui_admin
-]
-_extra = os.getenv("CORS_EXTRA_ORIGINS", "")
-if _extra.strip():
-    _cors_origins.extend(o.strip() for o in _extra.split(",") if o.strip())
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.method} {request.url.path}", exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
-from app.routers.auth import is_skip_admin_auth_enabled
 
+# CORS: CORS_ORIGINS (defaults to localhost); private LAN IPs when SKIP_ADMIN_AUTH (dev only)
 _cors_kwargs: dict = {
-    "allow_origins": _cors_origins,
+    "allow_origins": CORS_ORIGINS,
     "allow_credentials": True,
     "allow_methods": ["*"],
     "allow_headers": ["*"],
@@ -324,6 +347,7 @@ app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(exams.router, prefix="/api/exams", tags=["exams"])
 app.include_router(sections.router, prefix="/api/sections", tags=["sections"])
 app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
 app.include_router(tests.router, prefix="/api/tests", tags=["tests"])
@@ -340,8 +364,6 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    from app.routers.auth import is_skip_admin_auth_enabled
-
     return {
         "status": "healthy",
         "skip_admin_auth": is_skip_admin_auth_enabled(),
