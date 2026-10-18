@@ -48,11 +48,23 @@ ALLOW_FREE_PURCHASE = _flag("ALLOW_FREE_PURCHASE", default=True) and not IS_PROD
 
 LOAD_SAMPLE_DATA = _flag("LOAD_SAMPLE_DATA", default=True) and not IS_PRODUCTION
 
+RATE_LIMIT_ENABLED = _flag("RATE_LIMIT_ENABLED", default=True) or IS_PRODUCTION
+
 # Network slack allowed past a section deadline before answers stop being accepted.
 EXAM_SUBMIT_GRACE_SECONDS = int(os.getenv("EXAM_SUBMIT_GRACE_SECONDS", "60"))
 
 # How long a student may stay on a break between sections before the attempt ends.
 EXAM_MAX_BREAK_MINUTES = int(os.getenv("EXAM_MAX_BREAK_MINUTES", "60"))
+
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "").strip()
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+CHECKOUT_CURRENCY = os.getenv("CHECKOUT_CURRENCY", "usd").strip().lower()
+# Student site origin, used for Stripe Checkout success/cancel redirects.
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").strip().rstrip("/")
+
+
+def payments_enabled() -> bool:
+    return bool(STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET)
 
 
 def validate_settings() -> None:
@@ -67,6 +79,10 @@ def validate_settings() -> None:
             problems.append("CORS_ORIGINS must list the production frontend origins")
         if _flag("SKIP_ADMIN_AUTH"):
             problems.append("SKIP_ADMIN_AUTH must not be set in production")
+        if not payments_enabled():
+            problems.append("STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be set")
+        if not os.getenv("FRONTEND_URL", "").startswith("https://"):
+            problems.append("FRONTEND_URL must be the https:// student site origin")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
     else:
@@ -74,3 +90,5 @@ def validate_settings() -> None:
             logger.warning("SECRET_KEY is the built-in default; set it in backend/.env")
         if not GOOGLE_CLIENT_IDS:
             logger.warning("GOOGLE_CLIENT_ID is not set; Google sign-in will be rejected")
+        if not payments_enabled():
+            logger.info("Stripe is not configured; checkout grants packages for free (dev only)")

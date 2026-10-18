@@ -7,6 +7,9 @@ os.environ["ALLOW_FREE_PURCHASE"] = "true"
 os.environ["GOOGLE_CLIENT_ID"] = "test-client-id"
 os.environ["ADMIN_EMAILS"] = "admin@example.com"
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-long-enough-1234"
+os.environ["STRIPE_SECRET_KEY"] = ""
+os.environ["STRIPE_WEBHOOK_SECRET"] = ""
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

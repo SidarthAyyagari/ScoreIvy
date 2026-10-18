@@ -12,3 +12,4 @@ google-auth==2.29.0
 requests==2.31.0
 slowapi==0.1.9
 email-validator==2.1.1
+stripe==10.12.0

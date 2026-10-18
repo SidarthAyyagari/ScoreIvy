@@ -11,6 +11,7 @@ from app.services import questions as question_service
 from app.models.models import (
     AttemptSection,
     Exam,
+    Order,
     QuestionTag,
     Tag,
     User,
@@ -33,6 +34,7 @@ from app.schemas.schemas import (
 )
 from app.schemas.admin_schemas import (
     AdminAttemptSectionResponse,
+    AdminOrderResponse,
     AdminExamCreate,
     AdminExamResponse,
     AdminExamUpdate,
@@ -216,6 +218,14 @@ def list_attempt_sections(
     if test_attempt_id is not None:
         query = query.filter(AttemptSection.test_attempt_id == test_attempt_id)
     return query.order_by(AttemptSection.test_attempt_id, AttemptSection.section_order).offset(skip).limit(limit).all()
+
+
+@router.get("/orders", response_model=List[AdminOrderResponse])
+def list_orders(skip: int = 0, limit: int = 200, status: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Order)
+    if status:
+        query = query.filter(Order.status == status)
+    return query.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
 
 
 # --- Users ---

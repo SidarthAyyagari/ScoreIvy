@@ -42,6 +42,8 @@ export default function DashboardPage() {
   const [availablePackages, setAvailablePackages] = useState<Package[]>([])
   const [userPackages, setUserPackages] = useState<UserPackage[]>([])
   const [loading, setLoading] = useState(true)
+  const [checkoutNotice, setCheckoutNotice] = useState<string | null>(null)
+  const [purchasingId, setPurchasingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -50,6 +52,23 @@ export default function DashboardPage() {
     }
 
     fetchData()
+
+    const checkout = new URLSearchParams(window.location.search).get('checkout')
+    if (!checkout) return
+    router.replace('/dashboard')
+    if (checkout === 'cancelled') {
+      setCheckoutNotice('Checkout was cancelled. You have not been charged.')
+      return
+    }
+    // Stripe redirects before (or just after) the webhook grants the package, so poll briefly.
+    setCheckoutNotice('Payment received. Your package will appear under My Packages in a few seconds.')
+    let polls = 0
+    const timer = setInterval(() => {
+      polls += 1
+      apiJson<UserPackage[]>('/api/packages/user/purchased').then(setUserPackages).catch(() => {})
+      if (polls >= 6) clearInterval(timer)
+    }, 2000)
+    return () => clearInterval(timer)
   }, [isAuthenticated, router])
 
   const fetchData = async () => {
@@ -76,17 +95,21 @@ export default function DashboardPage() {
     : availablePackages.filter((pkg) => pkg.exam_id === selectedExamId)
 
   const handlePurchase = async (packageId: number) => {
+    setPurchasingId(packageId)
     try {
-      await apiJson(`/api/packages/${packageId}/purchase`, {
+      const result = await apiJson<{ checkout_url: string | null }>(`/api/payments/checkout/${packageId}`, {
         method: 'POST',
       })
-      
-      // Refresh data
-      fetchData()
-      alert('Package purchased successfully!')
+      if (result.checkout_url) {
+        window.location.href = result.checkout_url
+        return
+      }
+      setCheckoutNotice('Package added to your account.')
+      await fetchData()
     } catch (err: any) {
-      alert(err.message || 'Failed to purchase package')
+      alert(err.message || 'Could not start checkout')
     }
+    setPurchasingId(null)
   }
 
   const handleViewPackage = (userPackageId: number) => {
@@ -115,6 +138,13 @@ export default function DashboardPage() {
             Logout
           </button>
         </div>
+
+        {checkoutNotice && (
+          <div className={styles.notice} role="status">
+            <span>{checkoutNotice}</span>
+            <button onClick={() => setCheckoutNotice(null)} aria-label="Dismiss">×</button>
+          </div>
+        )}
 
         <div className={styles.panels}>
           {/* Active Packages Panel */}
@@ -194,8 +224,9 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handlePurchase(pkg.id)}
                       className={styles.purchaseButton}
+                      disabled={purchasingId !== null}
                     >
-                      Purchase
+                      {purchasingId === pkg.id ? 'Redirecting…' : 'Buy'}
         </button>
                   </div>
                 ))}

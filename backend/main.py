@@ -8,7 +8,7 @@ import os
 from sqlalchemy import text
 from app.config import CORS_ORIGINS, IS_PRODUCTION, LOAD_SAMPLE_DATA, validate_settings
 from app.limiter import limiter
-from app.routers import questions, tests, users, packages, auth, test_results, sections, admin, exams
+from app.routers import questions, tests, users, packages, auth, test_results, sections, admin, exams, payments
 from app.routers.auth import is_skip_admin_auth_enabled
 from app.db.database import engine, SessionLocal
 
@@ -206,6 +206,7 @@ def run_initialization_script():
                 "08_add_user_is_admin.sql",
                 "09_package_expiry_and_exam_deadlines.sql",
                 "10_multi_exam.sql",
+                "11_launch_exams_and_orders.sql",
             ):
                 migration_file_path = os.path.join(base_path, "database", migration_file)
                 if not os.path.exists(migration_file_path):
@@ -353,6 +354,7 @@ app.include_router(questions.router, prefix="/api/questions", tags=["questions"]
 app.include_router(tests.router, prefix="/api/tests", tags=["tests"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(packages.router, prefix="/api/packages", tags=["packages"])
+app.include_router(payments.router, prefix="/api/payments", tags=["payments"])
 app.include_router(test_results.router, prefix="/api/test-results", tags=["test-results"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 

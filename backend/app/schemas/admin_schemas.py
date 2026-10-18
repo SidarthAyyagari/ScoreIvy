@@ -70,6 +70,24 @@ class AdminQuestionTagResponse(BaseModel):
         from_attributes = True
 
 
+class AdminOrderResponse(BaseModel):
+    id: int
+    user_id: int
+    package_id: int
+    status: str
+    amount_cents: int
+    currency: str
+    stripe_checkout_session_id: Optional[str]
+    stripe_payment_intent_id: Optional[str]
+    user_package_id: Optional[int]
+    created_at: datetime
+    paid_at: Optional[datetime]
+    refunded_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 class AdminAttemptSectionResponse(BaseModel):
     id: int
     test_attempt_id: int

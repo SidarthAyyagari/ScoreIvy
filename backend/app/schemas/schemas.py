@@ -238,6 +238,25 @@ class UserPackageResponse(BaseModel):
         from_attributes = True
 
 
+class CheckoutResponse(BaseModel):
+    checkout_url: Optional[str] = None  # Redirect here to pay
+    user_package_id: Optional[int] = None  # Set when granted without payment (dev only)
+
+
+class OrderResponse(BaseModel):
+    id: int
+    package_id: int
+    status: str
+    amount_cents: int
+    currency: str
+    created_at: datetime
+    paid_at: Optional[datetime]
+    refunded_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 # Package Schemas
 class PackageCreate(BaseModel):
     exam_id: Optional[int] = None

@@ -46,7 +46,7 @@
 - `GET /api/packages/` - List available packages
 - `GET /api/packages/{id}` - Get package details
 - `GET /api/packages/user/purchased` - Get user's purchased packages
-- `POST /api/packages/{id}/purchase` - Purchase a package
+- `POST /api/payments/checkout/{id}` - Start Stripe Checkout for a package (credits granted by `POST /api/payments/webhook`)
 
 #### Tests
 - `GET /api/tests/` - List tests

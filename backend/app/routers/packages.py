@@ -2,15 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import logging
-from app.config import ALLOW_FREE_PURCHASE
 from app.db.database import get_db
 from app.models.models import Exam, Package, UserPackage, User
-from app.schemas.schemas import (
-    PackageResponse, PackageCreate, PackageUpdate, UserPackageResponse
-)
+from app.schemas.schemas import PackageResponse, PackageCreate, PackageUpdate
 from app.routers.auth import get_current_user
 from app.deps.admin import require_admin
-from app.services.entitlements import grant_package, is_expired
+from app.services.entitlements import is_expired
 
 logger = logging.getLogger(__name__)
 
@@ -83,29 +80,6 @@ async def get_user_packages(
         })
 
     return result
-
-
-@router.post("/{package_id}/purchase", response_model=UserPackageResponse)
-async def purchase_package(
-    package_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Grant a package without payment. Dev only; disabled in production until Stripe checkout."""
-    if not ALLOW_FREE_PURCHASE:
-        raise HTTPException(status_code=403, detail="Checkout is not available yet")
-
-    package = db.query(Package).filter(Package.id == package_id).first()
-    if not package:
-        raise HTTPException(status_code=404, detail="Package not found")
-    if not package.is_active:
-        raise HTTPException(status_code=400, detail="Package is not available")
-
-    user_package = grant_package(db, current_user.id, package)
-    db.commit()
-    db.refresh(user_package)
-    logger.info(f"Granted package {package_id} to user {current_user.id} (user_package {user_package.id})")
-    return user_package
 
 
 @router.post("/", response_model=PackageResponse)

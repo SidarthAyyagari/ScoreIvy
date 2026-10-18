@@ -87,6 +87,28 @@ class UserPackage(Base):
     test_attempts = relationship("TestAttempt", back_populates="user_package")
 
 
+class Order(Base):
+    """A Stripe Checkout purchase of a package. Status: pending, paid, expired, refunded."""
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    package_id = Column(Integer, ForeignKey("packages.id"), nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    amount_cents = Column(Integer, nullable=False)
+    currency = Column(String, nullable=False)
+    stripe_checkout_session_id = Column(String, unique=True, nullable=True)
+    stripe_payment_intent_id = Column(String, nullable=True, index=True)
+    user_package_id = Column(Integer, ForeignKey("user_packages.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    refunded_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
+    package = relationship("Package")
+    user_package = relationship("UserPackage")
+
+
 class Section(Base):
     __tablename__ = "sections"
 

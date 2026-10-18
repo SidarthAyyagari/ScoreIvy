@@ -25,11 +25,14 @@
 - [x] Timed test sections (USMLE blocks / SAT modules) with server-locked deadlines and breaks
 - [x] Section and scaled scores (`tests.scoring` lookup tables) on results
 - [x] Per-exam tools in exam UI (calculator via Desmos, reference sheet, notes, lab values placeholder)
-- [ ] Decide launch order and which USMLE steps; seed `exams` rows and first packs in production
+- [x] Launch both exams together: USMLE Step 1 and SAT (seeded by `database/11_launch_exams_and_orders.sql`)
+- [ ] Create the first packs per exam in production admin
 - [ ] Load real question content per exam
 
 ## P0 — Launch: payments, hosting, content
-- [ ] Stripe Checkout for packs + signed webhook that grants the package (replace dev-only free purchase)
+- [x] Stripe Checkout for packs + signed webhook that grants the package; refunds revoke credits; orders table + admin view
+- [ ] Create Stripe account; test end to end in test mode with `stripe listen`; then live keys + production webhook endpoint
+- [ ] Stripe Tax / receipts settings and statement descriptor
 - [ ] Alembic baseline migration; stop running SQL scripts on startup
 - [ ] Dockerfile for backend; deploy frontends + backend + managed Postgres (staging + production)
 - [ ] Domains, HTTPS, Google OAuth origins, Stripe webhook URL per environment
@@ -84,7 +87,9 @@
 - [ ] Make `sections.name` unique per exam instead of globally
 - [ ] Admin form cannot clear a value back to empty (e.g. `validity_days` → no expiry); add an explicit "clear" option
 - [ ] Trademark disclaimer (USMLE/NBME, SAT/College Board are not affiliated) on site and legal pages
-- [ ] Verify migrations 08–10 against real Postgres and click through both exams in a browser
+- [ ] Verify migrations 08–11 against real Postgres and click through both exams in a browser
+- [ ] Run uvicorn with `--proxy-headers` behind the host's load balancer so rate limits key on the real client IP
+- [ ] Hide or mark "Owned" on dashboard packages the student already has (checkout currently returns 409)
 
 ## P2 — Later
 - [ ] Image upload

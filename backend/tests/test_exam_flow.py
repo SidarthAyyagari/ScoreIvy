@@ -5,9 +5,11 @@ from tests.conftest import auth_headers
 
 
 def _purchase(client, student, package):
-    response = client.post(f"/api/packages/{package.id}/purchase", headers=auth_headers(student))
+    response = client.post(f"/api/payments/checkout/{package.id}", headers=auth_headers(student))
     assert response.status_code == 200
-    return response.json()
+    user_package_id = response.json()["user_package_id"]
+    purchased = client.get("/api/packages/user/purchased", headers=auth_headers(student)).json()
+    return next(item for item in purchased if item["id"] == user_package_id)
 
 
 def _start(client, student, test_id, user_package_id):

@@ -119,7 +119,24 @@ Run Next.js bound to all interfaces so LAN devices can connect: `cd ui_admin && 
 
 - Each package has `validity_days` (editable in the admin UI under Packages). Credits expire that many days after purchase; leave it empty for no expiry. An individual purchase's expiry can be changed under User Packages → `expires_at`.
 - Starting a test uses one credit and fixes the deadline on the server. Refreshing resumes the same attempt; answers autosave. Each test can be taken once per student.
-- Until Stripe checkout is added, the dashboard "Purchase" button grants packages for free in development only (`ALLOW_FREE_PURCHASE`); it is disabled when `ENV=production`.
+- A student can't buy a package they already own (unless their copy has expired), because tests can't be retaken.
+
+### Payments (Stripe Checkout)
+
+The dashboard **Buy** button calls `POST /api/payments/checkout/{package_id}`, which creates a pending order and redirects to Stripe Checkout at the package's price. Credits are granted only when Stripe's signed webhook (`POST /api/payments/webhook`) reports the payment as paid. Redirect URLs alone never grant anything. A full refund issued in the Stripe dashboard marks the order refunded and removes the remaining credits. Admins can see every purchase under **Orders**.
+
+Webhook events to enable: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`, `charge.refunded`.
+
+Local testing with the [Stripe CLI](https://docs.stripe.com/stripe-cli):
+
+```bash
+stripe login
+stripe listen --forward-to localhost:8000/api/payments/webhook   # prints whsec_...
+```
+
+Put your test-mode `STRIPE_SECRET_KEY` (`sk_test_...`) and the printed `STRIPE_WEBHOOK_SECRET` in `backend/.env`, restart the backend, and buy with card `4242 4242 4242 4242`.
+
+Without Stripe keys (development only), **Buy** grants the package immediately (`ALLOW_FREE_PURCHASE`). With `ENV=production` the backend refuses to start without `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and an `https://` `FRONTEND_URL`.
 
 ### Exams (USMLE, SAT, ...)
 

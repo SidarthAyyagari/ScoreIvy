@@ -109,6 +109,21 @@ export const RESOURCES: ResourceDef[] = [
     ],
   },
   {
+    key: 'orders',
+    label: 'Orders',
+    apiPath: 'orders',
+    description: 'Stripe purchases (pending, paid, expired, refunded). Refund from the Stripe dashboard; credits are revoked automatically.',
+    readOnlyResource: true,
+    fields: [
+      { name: 'id', label: 'ID', type: 'number', readOnly: true },
+      { name: 'user_id', label: 'User ID', type: 'number', readOnly: true },
+      { name: 'package_id', label: 'Package ID', type: 'number', readOnly: true },
+      { name: 'status', label: 'Status', type: 'string', readOnly: true },
+      { name: 'amount_cents', label: 'Amount (cents)', type: 'number', readOnly: true },
+      { name: 'paid_at', label: 'Paid At', type: 'datetime', readOnly: true },
+    ],
+  },
+  {
     key: 'sections',
     label: 'Sections',
     apiPath: 'sections',
