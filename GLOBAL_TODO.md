@@ -1,7 +1,7 @@
 # ScoreIvy Global TODO
 
 ## Rules
-- Agents must read this file before starting work.
+- Agents must read this file and [GLOBAL_PLAN.md](GLOBAL_PLAN.md) before starting work.
 - Agents must only work on the highest-priority unchecked item assigned to them.
 - Agents must not change unrelated files.
 - Agents must mark completed items with [x].
@@ -53,13 +53,13 @@
 - [x] Admin question creation form
 - [x] Bulk CSV question upload
 - [x] CSV validation + error report
-- [ ] Question list table
-- [ ] Edit question page
-- [ ] Exam creation model
-- [ ] Assign questions to exam
-- [ ] Student timed exam flow
-- [ ] Submit exam + score
-- [ ] Results page
+- [x] Question list table
+- [x] Edit question page
+- [x] Exam creation model
+- [x] Assign questions to exam
+- [x] Student timed exam flow
+- [x] Submit exam + score
+- [x] Results page
 - [ ] Configure `ADMIN_EMAILS` in production OS/environment (comma-separated admin emails; required for admin access after deploy)
 - [ ] Production deploy sanity check
 
@@ -68,7 +68,7 @@
 - [ ] Python docstrings and inline docs across backend (modules, routers, schemas — readability; like Javadoc)
 - [ ] Better error handling
 - [ ] Loading states
-- [ ] Search/pagination for admin questions
+- [x] Search/pagination for admin questions
 - [ ] Seed demo data
 - [ ] Sentry/logging
 
@@ -78,10 +78,10 @@
 - [ ] Document `ADMIN_EMAILS` env var in backend setup notes
 - [ ] Align `QuestionUpdate` schema validation with `QuestionCreate` rules
 - [ ] API tests for question create validation edge cases
-- [ ] Admin layout hub page linking question list, create, and CSV upload
+- [x] Admin layout hub page linking question list, create, and CSV upload
 - [ ] Wire admin nav link on dashboard when `is_admin` is available from auth
-- [ ] Publish sample questions CSV template for admins
-- [ ] API tests for CSV upload validation and import
+- [x] Publish sample questions CSV template for admins
+- [x] API tests for CSV upload validation and import
 - [ ] Configure `ADMIN_EMAILS` for local dev (shell profile, `.env`, or docker-compose)
 - [ ] Admin role management UI (promote/demote users without redeploying ADMIN_EMAILS)
 - [ ] Document `ADMIN_EMAILS` in backend setup / deploy notes
@@ -90,13 +90,9 @@
 - [ ] Real USMLE lab values panel content (currently a placeholder) and text zoom
 - [ ] Upgrade backend Python from 3.8 (EOL) to 3.11+
 - [ ] SAT adaptive module routing (module 2 difficulty based on module 1 score)
-- [ ] Admin UI page for CSV question upload (backend endpoint exists: `POST /api/questions/upload?exam_id=`)
-- [ ] Make `sections.name` unique per exam instead of globally
 - [ ] Admin form cannot clear a value back to empty (e.g. `validity_days` → no expiry); add an explicit "clear" option
 - [ ] Trademark disclaimer (USMLE/NBME, SAT/College Board are not affiliated) on site and legal pages
-- [ ] Verify migrations 08–11 against real Postgres and click through both exams in a browser
 - [ ] Run uvicorn with `--proxy-headers` behind the host's load balancer so rate limits key on the real client IP
-- [ ] Hide or mark "Owned" on dashboard packages the student already has (checkout currently returns 409)
 
 ## P2 — Later
 - [ ] Image upload
