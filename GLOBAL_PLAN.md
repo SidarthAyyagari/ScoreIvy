@@ -60,7 +60,9 @@ A student must never see a repeat question across the tests they buy, so the Tes
 
 `./start.sh` from the repo root (Docker Desktop must be running). Student site http://localhost:3000, admin http://localhost:3001, API docs http://localhost:8000/docs. With `SKIP_ADMIN_AUTH=true` in `backend/.env`, both login pages show **Continue without Google (dev)**. Without Stripe keys, **Buy** grants the pack for free.
 
-Checked against local Postgres on 2026-10-18: migrations 08–13 apply cleanly and the admin APIs work. **Known gap**: the old sample data (500 questions, 50 tests, 3 packages) has no exam assigned, so it doesn't appear under the USMLE or SAT tabs and the Test Builder can't use it. To click through, either enter questions for an exam in the Question Bank or add a demo seed per exam.
+Demo content: `cd backend && source venv/bin/activate && python -m scripts.seed_demo` adds "[Demo]" questions, a full-length test and a 2-minute "Quick Check" test per exam, and a demo pack per exam (safe to rerun; refuses in production). The old sample data (500 questions, 50 tests, 3 packages) has no exam assigned, so it doesn't appear under the USMLE or SAT tabs.
+
+Checked against local Postgres on 2026-10-18: migrations apply, the admin APIs work, and a full SAT Quick Check (buy, take with breaks, scaled results, retake and rebuy refused) works through the API. Fixed on the way: id sequences behind sample data (new rows failed with duplicate keys; `database/14_sync_id_sequences.sql` now runs after sample data at startup), and building two tests into one package in a single session.
 
 ## Production launch plan
 
@@ -128,7 +130,8 @@ Rules worth knowing:
 
 ## Gotchas for agents
 
-- **Commits**: the local Git is 2.24 and the environment adds a `--trailer` option it doesn't support. Commit with `/usr/bin/git commit -m "..."`.
+- **Commits**: the local Git is 2.24 and the environment adds a `--trailer` option it doesn't support. Commit with `/usr/bin/git commit -m "..."`. Don't use `git stash -- <path>` either: on this Git it left every file staged as deleted (`git reset` fixed the index).
+- **Background servers**: a server started with `&` inside a one-off shell command dies when that command ends; run it as its own background command.
 - **Secrets**: `backend/.env` and the `.env.local` files are gitignored. Never print or commit their values.
 - **Test database**: tests use SQLite with autoflush off, so call `db.flush()` before relying on new ids. `pytest.ini` sets `python_classes = *Suite` so the `Test*` database models aren't collected as tests. `conftest.py` turns off Stripe and rate limiting.
 - **Next.js**: pages using `useSearchParams` need a `<Suspense>` wrapper or `next build` fails.

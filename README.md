@@ -25,6 +25,12 @@ This will start:
 - 🎨 Student UI (Next.js) on `http://localhost:3000`
 - 🛠️ Admin UI (Next.js) on `http://localhost:3001`
 
+**Demo content** (fake "[Demo]" questions, a full-length test and a short Quick Check test per exam, and a pack for each), loaded once into your local database:
+```bash
+cd backend && source venv/bin/activate && python -m scripts.seed_demo
+```
+Log in with **Continue without Google (dev)**, buy a demo pack (free locally), and take a test. The Quick Check tests have 2-minute parts and breaks so you can see the break rules quickly.
+
 **Stop everything:** press `Ctrl+C` in the terminal where `start.sh` is running. The database keeps running; stop it with `docker-compose down`.
 
 ## Setup Instructions

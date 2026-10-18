@@ -1,7 +1,9 @@
-from app.models.models import Question, Section, User
+from app.models.models import PackageTest, Question, Section, User
 from app.models.models import Test as TestRow
 from app.models.models import TestQuestion as TestQuestionRow
 from app.models.models import TestSection as TestSectionRow
+from app.schemas.admin_schemas import BuildPart, BuildTestRequest
+from app.services.test_builder import build_test
 from tests.conftest import auth_headers
 
 
@@ -118,6 +120,18 @@ def test_part_can_be_limited_to_subjects(client, db, catalog):
         TestQuestionRow.test_id == test_id
     ).all()
     assert {q.section_id for q in picked} == {pharm}
+
+
+def test_several_builds_into_one_package_get_consecutive_positions(db, catalog):
+    _bank(db, catalog)
+    package = catalog["big_package"]
+    before = db.query(PackageTest).filter(PackageTest.package_id == package.id).count()
+    for name in ("Quick 1", "Quick 2"):
+        parts = [BuildPart(name="Block 1", question_count=4, time_limit_minutes=10)]
+        build_test(db, BuildTestRequest(exam_id=catalog["usmle"].id, name=name, parts=parts, package_id=package.id))
+    db.commit()
+    orders = [pt.test_order for pt in db.query(PackageTest).filter(PackageTest.package_id == package.id)]
+    assert len(orders) == before + 2 and len(set(orders)) == len(orders)
 
 
 def test_builder_requires_admin(client, student, catalog):

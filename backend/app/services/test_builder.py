@@ -9,6 +9,7 @@ so a student who buys several tests never sees a repeat.
 import random
 from typing import Dict, List, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.models import Package, PackageTest, Question, Section, Test, TestQuestion, TestSection
@@ -135,8 +136,8 @@ def build_test(db: Session, request: BuildTestRequest) -> BuildTestResult:
             ))
 
     if package is not None:
-        last = max((pt.test_order for pt in package.package_tests), default=0)
-        db.add(PackageTest(package_id=package.id, test_id=test.id, test_order=last + 1))
+        last = db.query(func.max(PackageTest.test_order)).filter(PackageTest.package_id == package.id).scalar()
+        db.add(PackageTest(package_id=package.id, test_id=test.id, test_order=(last or 0) + 1))
 
     db.flush()
     result.test_id = test.id

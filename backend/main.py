@@ -293,7 +293,14 @@ def run_initialization_script():
                 logger.info(f"✅ Comprehensive data loaded ({executed_count} executed, {skipped_count} skipped, {error_count} errors)")
             else:
                 logger.warning(f"⚠️  Comprehensive data script not found at {comprehensive_path}")
-            
+
+            sync_path = os.path.join(base_path, "database", "14_sync_id_sequences.sql")
+            if os.path.exists(sync_path):
+                with open(sync_path, 'r') as f:
+                    db.execute(text(f.read()))
+                db.commit()
+                logger.info("✅ Id sequences synced")
+
             logger.info("✅ Database initialization completed successfully")
         except Exception as e:
             logger.error(f"❌ Error running initialization script: {str(e)}", exc_info=True)
